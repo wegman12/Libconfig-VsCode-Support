@@ -1,126 +1,213 @@
 {
 	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
 	"name": "LibConfig",
+	"scopeName": "source.libconfig",
 	"patterns": [
 		{
-			"include": "#object"
+			"include": "#value"
 		}
 	],
 	"repository": {
-		"object": {
-			"name": "meta.object.libconfig",
+		"array": {
+			"begin": "\\[",
+			"beginCaptures": {
+				"0": {
+					"name": "punctuation.definition.array.begin.libconfig"
+				}
+			},
+			"end": "\\]",
+			"endCaptures": {
+				"0": {
+					"name": "punctuation.definition.array.end.libconfig"
+				}
+			},
+			"name": "meta.structure.array.libconfig",
 			"patterns": [
 				{
-					"include": "#baseExpression"
+					"include": "#value"
 				},
 				{
-					"include": "#comment"
+					"match": ",",
+					"name": "punctuation.separator.array.libconfig"
 				},
 				{
-					"include": "#objectList"
+					"match": "[^\\s\\]]",
+					"name": "invalid.illegal.expected-array-separator.libconfig"
 				}
 			]
 		},
-		"baseExpression": {
+		"comments": {
 			"patterns": [
 				{
-					"include": "#variableName"
+					"begin": "/\\*\\*(?!/)",
+					"captures": {
+						"0": {
+							"name": "punctuation.definition.comment.libconfig"
+						}
+					},
+					"end": "\\*/",
+					"name": "comment.block.documentation.libconfig"
+				},
+				{
+					"begin": "/\\*",
+					"captures": {
+						"0": {
+							"name": "punctuation.definition.comment.libconfig"
+						}
+					},
+					"end": "\\*/",
+					"name": "comment.block.libconfig"
+				},
+				{
+					"captures": {
+						"1": {
+							"name": "punctuation.definition.comment.libconfig"
+						}
+					},
+					"match": "(//).*$\\n?",
+					"name": "comment.line.double-slash.libconfig"
+				}
+			]
+		},
+		"constant": {
+			"match": "\\b(?:true|false)\\b",
+			"name": "constant.language.libconfig"
+		},
+		"number": {
+			"match": "(?x)-?(?:0|[1-9]\\d*)(?:(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)?",
+			"name": "constant.numeric.libconfig"
+		},
+		"object": {
+			"begin": "\\{",
+			"beginCaptures": {
+				"0": {
+					"name": "punctuation.definition.object.begin.libconfig"
+				}
+			},
+			"end": "\\};",
+			"endCaptures": {
+				"1": {
+					"name": "punctuation.definition.object.end.libconfig"
+				}
+			},
+			"name": "meta.structure.dictionary.libconfig",
+			"patterns": [
+				{
+					"comment": "the libconfig object key",
+					"include": "#objectkey"
+				},
+				{
+					"include": "#comments"
+				},
+				{
+					"begin": ":",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.separator.dictionary.key-value.libconfig"
+						}
+					},
+					"end": ";",
+					"endCaptures": {
+						"1": {
+							"name": "punctuation.separator.object.begin.libconfig"
+						}
+					},
+					"name": "meta.structure.dictionary.value.libconfig",
+					"patterns": [
+						{
+							"comment": "the JSON object value",
+							"include": "#value"
+						},
+						{
+							"match": "[^\\s,]",
+							"name": "invalid.illegal.expected-dictionary-separator.libconfig"
+						}
+					]
+				},
+				{
+					"include": "#statement"
+				},
+				{
+					"match": "[^\\s\\}]",
+					"name": "invalid.illegal.expected-dictionary-separator.libconfig"
+				}
+			]
+		},
+		"string": {
+			"begin": "\"",
+			"beginCaptures": {
+				"0": {
+					"name": "punctuation.definition.string.begin.libconfig"
+				}
+			},
+			"end": "\"",
+			"endCaptures": {
+				"0": {
+					"name": "punctuation.definition.string.end.libconfig"
+				}
+			},
+			"name": "string.quoted.double.libconfig",
+			"patterns": [
+				{
+					"include": "#stringcontent"
+				}
+			]
+		},
+		"objectkey": {
+			"match": "[a-zA-Z][a-zA-Z0-9_]*",
+			"name": "string.libconfig support.type.property-name.libconfig"
+		},
+		"stringcontent": {
+			"patterns": [
+				{
+					"match": "(?x)\\\\(?:[\"\\\\/bfnrt]|u[0-9a-fA-F]{4})",
+					"name": "constant.character.escape.libconfig"
+				},
+				{
+					"match": "\\\\.",
+					"name": "invalid.illegal.unrecognized-string-escape.libconfig"
+				}
+			]
+		},
+		"statement":{
+			"begin": "=",
+			"beginCaptures": {
+				"0": {
+					"name": "punctuation.definition.dictionary.begin.libconfig"
+				}
+			},
+			"end": ";",
+			"endCaptures": {
+				"1": {
+					"name": "punctuation.definition.dictionary.end.libconfig"
+				}
+			},
+			"name": "meta.parameter.type.assignment"
+		},
+		"value": {
+			"patterns": [
+				{
+					"include": "#constant"
+				},
+				{
+					"include": "#number"
 				},
 				{
 					"include": "#string"
 				},
 				{
-					"include": "#numeric"
-				}
-			]
-		},
-		"variableName": {
-			"patterns": [
-				{
-					"name": "variable.parameter.libconfig",
-					"match": "([a-zA-Z][a-zA-Z0-9_]{0,})"
-				}
-			]
-		},
-		"string": {
-			"name": "string.quoted.double.libconfig",
-			"begin": "\"",
-			"end": "\"",
-			"patterns": [
-				{
-					"name": "constant.character.escape.libconfig",
-					"match": "\\\\."
-				}
-			]
-		},
-		"numeric": {
-			"patterns": [
-				{
-					"name": "constant.numeric.libconfig",
-					"match": "(-?[0-9]+(\\.[0-9]+)?[eE]-?[0-9]+)"
+					"include": "#array"
 				},
-				{
-					"name": "constant.numeric.libconfig",
-					"match": "(-?[0-9]{0,}\\.[0-9]{0,})"
-				},
-				{
-					"name": "constant.numeric.libconfig",
-					"match": "(-?[0-9]+)"
-				}
-			]
-		},
-		"comment": {
-			"patterns": [
-				{
-					"include": "#lineComment"
-				},
-				{
-					"include": "#blockComment"
-				}
-			]
-		},
-		"lineComment": {
-			"name": "comment.line.libconfig",
-			"begin": "//",
-			"end": "\n",
-			"patterns": [
-				{
-					"name": "constant.character.escape.libconfig",
-					"match": "\\\\."
-				}
-			]
-		},
-		"blockComment": {
-			"name": "comment.block.libconfig",
-			"begin": "/\\*",
-			"end": "\\*/",
-			"patterns": [
-				{
-					"name": "constant.character.escape.libconfig",
-					"match": "\\\\."
-				}
-			]
-		},
-		"objectList": {
-			"begin": "\\(",
-			"end": "\\)",
-			"beginCaptures": {
-				"0": {
-					"name": "punctuation.paren.open"
-				}
-			},
-			"endCaptures": {
-				"0": {
-					"name": "punctuation.paren.close"
-				}
-			},
-			"name": "object.group",
-			"patterns": [
 				{
 					"include": "#object"
+				},
+				{
+					"include": "#objectkey"
+				},
+				{
+					"include": "#comments"
 				}
 			]
 		}
-	},
-	"scopeName": "source.libconfig"
+	}
 }
