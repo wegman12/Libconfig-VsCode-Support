@@ -1,0 +1,126 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "LibConfig",
+	"patterns": [
+		{
+			"include": "#object"
+		}
+	],
+	"repository": {
+		"object": {
+			"name": "meta.object.libconfig",
+			"patterns": [
+				{
+					"include": "#baseExpression"
+				},
+				{
+					"include": "#comment"
+				},
+				{
+					"include": "#objectList"
+				}
+			]
+		},
+		"baseExpression": {
+			"patterns": [
+				{
+					"include": "#variableName"
+				},
+				{
+					"include": "#string"
+				},
+				{
+					"include": "#numeric"
+				}
+			]
+		},
+		"variableName": {
+			"patterns": [
+				{
+					"name": "variable.parameter.libconfig",
+					"match": "([a-zA-Z][a-zA-Z0-9_]{0,})"
+				}
+			]
+		},
+		"string": {
+			"name": "string.quoted.double.libconfig",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.libconfig",
+					"match": "\\\\."
+				}
+			]
+		},
+		"numeric": {
+			"patterns": [
+				{
+					"name": "constant.numeric.libconfig",
+					"match": "(-?[0-9]+(\\.[0-9]+)?[eE]-?[0-9]+)"
+				},
+				{
+					"name": "constant.numeric.libconfig",
+					"match": "(-?[0-9]{0,}\\.[0-9]{0,})"
+				},
+				{
+					"name": "constant.numeric.libconfig",
+					"match": "(-?[0-9]+)"
+				}
+			]
+		},
+		"comment": {
+			"patterns": [
+				{
+					"include": "#lineComment"
+				},
+				{
+					"include": "#blockComment"
+				}
+			]
+		},
+		"lineComment": {
+			"name": "comment.line.libconfig",
+			"begin": "//",
+			"end": "\n",
+			"patterns": [
+				{
+					"name": "constant.character.escape.libconfig",
+					"match": "\\\\."
+				}
+			]
+		},
+		"blockComment": {
+			"name": "comment.block.libconfig",
+			"begin": "/\\*",
+			"end": "\\*/",
+			"patterns": [
+				{
+					"name": "constant.character.escape.libconfig",
+					"match": "\\\\."
+				}
+			]
+		},
+		"objectList": {
+			"begin": "\\(",
+			"end": "\\)",
+			"beginCaptures": {
+				"0": {
+					"name": "punctuation.paren.open"
+				}
+			},
+			"endCaptures": {
+				"0": {
+					"name": "punctuation.paren.close"
+				}
+			},
+			"name": "object.group",
+			"patterns": [
+				{
+					"include": "#object"
+				}
+			]
+		}
+	},
+	"scopeName": "source.libconfig"
+}

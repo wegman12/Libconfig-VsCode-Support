@@ -1,0 +1,25 @@
+{
+    "name": "cfg",
+    "displayName": "LibConfig",
+    "description": "C++ Configuration Library Syntax Highlighter and Refactoring Agent",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.40.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "libconfig",
+            "aliases": ["LibConfig", "libconfig"],
+            "extensions": [".cfg"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "libconfig",
+            "scopeName": "source.libconfig",
+            "path": "./syntaxes/libconfig.tmLanguage.json"
+        }]
+    }
+}
