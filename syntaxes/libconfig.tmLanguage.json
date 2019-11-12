@@ -4,38 +4,13 @@
 	"scopeName": "source.libconfig",
 	"patterns": [
 		{
-			"include": "#value"
+			"include": "#declaration"
+		},
+		{
+			"include": "#comments"
 		}
 	],
 	"repository": {
-		"array": {
-			"begin": "\\[",
-			"beginCaptures": {
-				"0": {
-					"name": "punctuation.definition.array.begin.libconfig"
-				}
-			},
-			"end": "\\]",
-			"endCaptures": {
-				"0": {
-					"name": "punctuation.definition.array.end.libconfig"
-				}
-			},
-			"name": "meta.structure.array.libconfig",
-			"patterns": [
-				{
-					"include": "#value"
-				},
-				{
-					"match": ",",
-					"name": "punctuation.separator.array.libconfig"
-				},
-				{
-					"match": "[^\\s\\]]",
-					"name": "invalid.illegal.expected-array-separator.libconfig"
-				}
-			]
-		},
 		"comments": {
 			"patterns": [
 				{
@@ -66,6 +41,15 @@
 					},
 					"match": "(//).*$\\n?",
 					"name": "comment.line.double-slash.libconfig"
+				},
+				{
+					"captures": {
+						"1": {
+							"name": "punctuation.definition.comment.libconfig"
+						}
+					},
+					"match": "(#).*$\\n?",
+					"name": "comment.line.double-slash.libconfig"
 				}
 			]
 		},
@@ -73,65 +57,17 @@
 			"match": "\\b(?:true|false)\\b",
 			"name": "constant.language.libconfig"
 		},
-		"number": {
+		"double": {
 			"match": "(?x)-?(?:0|[1-9]\\d*)(?:(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)?",
 			"name": "constant.numeric.libconfig"
 		},
-		"object": {
-			"begin": "\\{",
-			"beginCaptures": {
-				"0": {
-					"name": "punctuation.definition.object.begin.libconfig"
-				}
-			},
-			"end": "\\};",
-			"endCaptures": {
-				"1": {
-					"name": "punctuation.definition.object.end.libconfig"
-				}
-			},
-			"name": "meta.structure.dictionary.libconfig",
-			"patterns": [
-				{
-					"comment": "the libconfig object key",
-					"include": "#objectkey"
-				},
-				{
-					"include": "#comments"
-				},
-				{
-					"begin": ":",
-					"beginCaptures": {
-						"0": {
-							"name": "punctuation.separator.dictionary.key-value.libconfig"
-						}
-					},
-					"end": ";",
-					"endCaptures": {
-						"1": {
-							"name": "punctuation.separator.object.begin.libconfig"
-						}
-					},
-					"name": "meta.structure.dictionary.value.libconfig",
-					"patterns": [
-						{
-							"comment": "the JSON object value",
-							"include": "#value"
-						},
-						{
-							"match": "[^\\s,]",
-							"name": "invalid.illegal.expected-dictionary-separator.libconfig"
-						}
-					]
-				},
-				{
-					"include": "#statement"
-				},
-				{
-					"match": "[^\\s\\}]",
-					"name": "invalid.illegal.expected-dictionary-separator.libconfig"
-				}
-			]
+		"integer": {
+			"match": "\\d+L",
+			"name": "constant.numeric.libconfig"
+		},
+		"hex": {
+			"match": "0x[0-9A-Fa-f]{4}",
+			"name": "constant.numeric.libconfig"
 		},
 		"string": {
 			"begin": "\"",
@@ -149,15 +85,187 @@
 			"name": "string.quoted.double.libconfig",
 			"patterns": [
 				{
-					"include": "#stringcontent"
+					"include": "#string-content"
 				}
 			]
 		},
-		"objectkey": {
-			"match": "[a-zA-Z][a-zA-Z0-9_]*",
-			"name": "string.libconfig support.type.property-name.libconfig"
+		"declaration": {
+			"begin": "[a-zA-Z][a-zA-Z0-9_]*",
+			"beginCaptures": {
+				"0": {
+					"name": "support.type.property-name.libconfig"
+				}
+			},
+			"end": ";",
+			"endCaptures": {
+				"0": {
+					"name": "punctuation.definition.declaration.terminator.libconfig"
+				}
+			},
+			"name": "meta.declaration.libconfig",
+			"patterns": [
+				{
+					"include": "#assignment"
+				},
+				{
+					"include": "#comments"
+				},
+				{
+					"match": ".",
+					"name": "invalid.illegal.unrecognized-object-declaration.libconfig"
+				}
+			]
 		},
-		"stringcontent": {
+		"object": {
+			"begin": "\\{",
+			"beginCaptures": {
+				"0": {
+					"name": "punctuation.definition.object.originator.libconfig"
+				}
+			},
+			"end": "\\}",
+			"endCaptures": {
+				"0": {
+					"name": "punctuation.definition.object.terminator.libconfig"
+				}
+			},
+			"name": "meta.object.libconfig",
+			"patterns": [
+				{
+					"include": "#declaration"
+				},
+				{
+					"include": "#comments"
+				},
+				{
+					"match": ".",
+					"name": "invalid.illegal.object.libconfig"
+				}
+			]
+		},
+		"array": {
+			"begin": "\\[",
+			"beginCaptures": {
+				"0": {
+					"name": "punctuation.definition.array.originator.libconfig"
+				}
+			},
+			"end": "\\]",
+			"endCaptures": {
+				"0": {
+					"name": "punctuation.definition.array.terminator.libconfig"
+				}
+			},
+			"name": "meta.object.libconfig",
+			"patterns": [
+				{
+					"include": "#scalar-value"
+				},
+				{
+					"include": "#comments"
+				},
+				{
+					"match": ",",
+					"name": "punctuation.separator.array.libconfig"
+				},
+				{
+					"match": "[^\\s\\]]",
+					"name": "invalid.illegal.expected-array-separator.libconfig"
+				}
+			]
+		},
+		"list": {
+			"begin": "\\(",
+			"beginCaptures": {
+				"0": {
+					"name": "punctuation.definition.list.originator.libconfig"
+				}
+			},
+			"end": "\\)",
+			"endCaptures": {
+				"0": {
+					"name": "punctuation.definition.list.terminator.libconfig"
+				}
+			},
+			"name": "meta.object.libconfig",
+			"patterns": [
+				{
+					"include": "#object"
+				},
+				{
+					"include": "#value"
+				},
+				{
+					"include": "#comments"
+				},
+				{
+					"match": ",",
+					"name": "punctuation.separator.list.libconfig"
+				},
+				{
+					"match": "[^\\s\\]]",
+					"name": "invalid.illegal.expected-list-separator.libconfig"
+				}
+			]
+		},
+		"assignment": {
+			"patterns": [
+				{
+					"include": "#value-assignment"
+				},
+				{
+					"include": "#comments"
+				},
+				{
+					"include": "#object-assignment"
+				}
+			]
+		},
+		"value-assignment": {
+			"begin": "=",
+			"beginCaptures": {
+				"0": {
+					"name": "keyword.operator.assignment.libconfig"
+				}
+			},
+			"end": "(?=;)",
+			"name": "meta.assignment.libconfig",
+			"patterns": [
+				{
+					"include": "#value"
+				},
+				{
+					"include": "#comments"
+				},
+				{
+					"match": ".",
+					"name": "invalid.illegal.value-assignment.libconfig"
+				}
+			]
+		},
+		"object-assignment": {
+			"begin": ":",
+			"beginCaptures": {
+				"0": {
+					"name": "keyword.operator.assignment.libconfig"
+				}
+			},
+			"end": "(?=;)",
+			"name": "meta.assignment.libconfig",
+			"patterns": [
+				{
+					"include": "#value"
+				},
+				{
+					"include": "#comments"
+				},
+				{
+					"match": ".",
+					"name": "invalid.illegal.object-assignment.libconfig"
+				}
+			]
+		},
+		"string-content": {
 			"patterns": [
 				{
 					"match": "(?x)\\\\(?:[\"\\\\/bfnrt]|u[0-9a-fA-F]{4})",
@@ -169,43 +277,41 @@
 				}
 			]
 		},
-		"statement":{
-			"begin": "=",
-			"beginCaptures": {
-				"0": {
-					"name": "punctuation.definition.dictionary.begin.libconfig"
-				}
-			},
-			"end": ";",
-			"endCaptures": {
-				"1": {
-					"name": "punctuation.definition.dictionary.end.libconfig"
-				}
-			},
-			"name": "meta.parameter.type.assignment"
-		},
-		"value": {
+		"scalar-value": {
 			"patterns": [
 				{
-					"include": "#constant"
-				},
-				{
-					"include": "#number"
+					"include": "#hex"
 				},
 				{
 					"include": "#string"
 				},
 				{
-					"include": "#array"
+					"include": "#constant"
 				},
 				{
-					"include": "#object"
+					"include": "#integer"
 				},
 				{
-					"include": "#objectkey"
+					"include": "#double"
 				},
 				{
 					"include": "#comments"
+				}
+			]
+		},
+		"value": {
+			"patterns": [
+				{
+					"include": "#scalar-value"
+				},
+				{
+					"include": "#array"
+				},
+				{
+					"include": "#list"
+				},
+				{
+					"include": "#object"
 				}
 			]
 		}
