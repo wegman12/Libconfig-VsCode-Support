@@ -3,23 +3,76 @@
     "displayName": "LibConfig",
     "description": "C++ Configuration Library Syntax Highlighter and Refactoring Agent",
     "version": "0.0.1",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/wegman12/Libconfig-VsCode-Support"
+    },
     "engines": {
         "vscode": "^1.40.0"
     },
     "categories": [
         "Programming Languages"
     ],
+	"activationEvents": [
+		"onLanguage:libconfig"
+	],
+	"main": "./client/out/extension",
     "contributes": {
-        "languages": [{
-            "id": "libconfig",
-            "aliases": ["LibConfig", "libconfig"],
-            "extensions": [".cfg"],
-            "configuration": "./language-configuration.json"
-        }],
-        "grammars": [{
-            "language": "libconfig",
-            "scopeName": "source.libconfig",
-            "path": "./syntaxes/libconfig.tmLanguage.json"
-        }]
-    }
+        "languages": [
+            {
+                "id": "libconfig",
+                "aliases": [
+                    "LibConfig",
+                    "libconfig"
+                ],
+                "extensions": [
+                    ".cfg"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "libconfig",
+                "scopeName": "source.libconfig",
+                "path": "./syntaxes/libconfig.tmLanguage.json"
+            }
+        ],
+        "configuration": {
+            "type": "object",
+            "title": "LibConfig Configuration",
+            "properties": {
+                "libConfigServer.maxNumberOfProblems": {
+                    "scope": "resource",
+                    "type": "number",
+                    "default": 100,
+                    "description": "Controls the maximum number of problems produced by the server."
+                },
+                "libConfigServer.trace.server": {
+                    "scope": "window",
+                    "type": "string",
+                    "enum": [
+                        "off",
+                        "messages",
+                        "verbose"
+                    ],
+                    "default": "off",
+                    "description": "Traces the communication between VS Code and the language server."
+                }
+            }
+        }
+    },
+	"scripts": {
+		"vscode:prepublish": "cd client && npm run update-vscode && cd .. && npm run compile",
+		"compile": "tsc -b",
+		"watch": "tsc -b -w",
+		"postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
+		"test": "sh ./scripts/e2e.sh"
+	},
+	"devDependencies": {
+		"@types/mocha": "^5.2.0",
+		"@types/node": "^8.0.0",
+		"tslint": "^5.16.0",
+		"typescript": "^3.5.1"
+	}
 }
