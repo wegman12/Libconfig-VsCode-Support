@@ -465,7 +465,7 @@ function isDigit(ch: number): boolean {
 function isValidPropertyCharacterStart(ch: number): boolean {
 	return (ch >= CharacterCodes.A && ch <= CharacterCodes.Z) ||
 		(ch >= CharacterCodes.a && ch <= CharacterCodes.z) ||
-		(ch == CharacterCodes.underscore);
+		(ch === CharacterCodes.underscore) || (ch === CharacterCodes.minus);
 }
 
 function isValidPropertyCharacter(ch: number): boolean {

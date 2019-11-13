@@ -89,7 +89,7 @@ function ParseLibConfigDocument(textDocument) {
         while (scanner.getToken() !== dataClasses_1.SyntaxKind.CloseParenToken &&
             scanner.getToken() !== dataClasses_1.SyntaxKind.EOF) {
             if (nextToken !== dataClasses_1.SyntaxKind.CommaToken) {
-                _error(localize('CommaExpected', 'Expected a comma'), dataClasses_1.ErrorCode.CommaExpected, [dataClasses_1.SyntaxKind.CloseParenToken], [dataClasses_1.SyntaxKind.CommaToken]);
+                _error(localize('CommaExpected', 'Expected a comma'), dataClasses_1.ErrorCode.CommaExpected, [dataClasses_1.SyntaxKind.CloseParenToken, dataClasses_1.SyntaxKind.CommaToken]);
                 continue;
             }
             _parseValue();

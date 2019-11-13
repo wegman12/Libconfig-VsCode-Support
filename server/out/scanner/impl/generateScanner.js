@@ -423,7 +423,7 @@ function isDigit(ch) {
 function isValidPropertyCharacterStart(ch) {
     return (ch >= 65 /* A */ && ch <= 90 /* Z */) ||
         (ch >= 97 /* a */ && ch <= 122 /* z */) ||
-        (ch == 95 /* underscore */);
+        (ch === 95 /* underscore */) || (ch === 45 /* minus */);
 }
 function isValidPropertyCharacter(ch) {
     return isValidPropertyCharacterStart(ch) || isDigit(ch);

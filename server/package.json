@@ -15,5 +15,8 @@
 		"vscode-languageserver": "^5.2.1",
 		"vscode-nls": "^4.1.1"
 	},
+	"devDependencies": {
+		"@types/node": "^12.11.7"
+	},
 	"scripts": {}
 }

@@ -135,8 +135,7 @@ export function ParseLibConfigDocument(textDocument: TextDocument): LibConfigDoc
 				_error(
 					localize('CommaExpected', 'Expected a comma'),
 					ErrorCode.CommaExpected,
-					[SyntaxKind.CloseParenToken],
-					[SyntaxKind.CommaToken]
+					[SyntaxKind.CloseParenToken, SyntaxKind.CommaToken]
 				);
 				continue;
 			}

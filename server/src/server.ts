@@ -29,7 +29,9 @@ import {
 import {
 	getFoldingRanges
 } from './folding/libConfigFolding';
-import { doValidation } from './validation/libConfigValidation';
+import { LibConfigValidation } from './validation/libConfigValidation';
+
+import { posix } from 'path';
 
 
 // Create a connection for the server. The connection uses Node's IPC as a transport.
@@ -92,6 +94,39 @@ interface ExampleSettings {
 	maxNumberOfProblems: number;
 }
 
+namespace LimitExceededWarnings {
+	const pendingWarnings: { [uri: string]: { features: { [name: string]: string }; timeout?: NodeJS.Timeout; } } = {};
+
+	export function cancel(uri: string) {
+		const warning = pendingWarnings[uri];
+		if (warning && warning.timeout) {
+			clearTimeout(warning.timeout);
+			delete pendingWarnings[uri];
+		}
+	}
+
+	export function onResultLimitExceeded(uri: string, resultLimit: number, name: string) {
+		return () => {
+			let warning = pendingWarnings[uri];
+			if (warning) {
+				if (!warning.timeout) {
+					// already shown
+					return;
+				}
+				warning.features[name] = name;
+				warning.timeout.refresh();
+			} else {
+				warning = { features: { [name]: name } };
+				warning.timeout = setTimeout(() => {
+					connection.window.showInformationMessage(`${posix.basename(uri)}: For performance reasons, ${Object.keys(warning.features).join(' and ')} have been limited to ${resultLimit} items.`);
+					warning.timeout = undefined;
+				}, 2000);
+				pendingWarnings[uri] = warning;
+			}
+		};
+	}
+}
+
 // The global settings, used when the `workspace/configuration` request is not supported by the client.
 // Please note that this is not the case when using this server with the client provided in this example
 // but could happen with other clients.
@@ -112,7 +147,7 @@ connection.onDidChangeConfiguration(change => {
 	}
 
 	// Revalidate all open text documents
-	documents.all().forEach(validateLibConfigDocument);
+	documents.all().forEach(triggerValidation);
 });
 
 function getDocumentSettings(resource: string): Thenable<ExampleSettings> {
@@ -130,30 +165,72 @@ function getDocumentSettings(resource: string): Thenable<ExampleSettings> {
 	return result;
 }
 
-// Only keep settings for open documents
-documents.onDidClose(e => {
-	documentSettings.delete(e.document.uri);
-});
-
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
-documents.onDidChangeContent(change => {
-	validateLibConfigDocument(change.document);
+documents.onDidChangeContent((change) => {
+	LimitExceededWarnings.cancel(change.document.uri);
+	triggerValidation(change.document);
 });
 
-async function validateLibConfigDocument(textDocument: TextDocument): Promise<void> {
-	// In this simple example we get the settings for every validate run.
-	let settings = await getDocumentSettings(textDocument.uri);
+// a document has closed: clear all diagnostics
+documents.onDidClose(event => {
+	LimitExceededWarnings.cancel(event.document.uri);
+	cleanPendingValidation(event.document);
+	connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] });
+});
 
-	let diagnostics:Diagnostic[] = doValidation(textDocument);
+const pendingValidationRequests: { [uri: string]: NodeJS.Timer; } = {};
+const validationDelayMs = 500;
 
-	// Send the computed diagnostics to VSCode.
-	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+function cleanPendingValidation(textDocument: TextDocument): void {
+	const request = pendingValidationRequests[textDocument.uri];
+	if (request) {
+		clearTimeout(request);
+		delete pendingValidationRequests[textDocument.uri];
+	}
 }
 
-connection.onDidChangeWatchedFiles(_change => {
-	// Monitored files have change in VSCode
-	connection.console.log('We received an file change event');
+function triggerValidation(textDocument: TextDocument): void {
+	cleanPendingValidation(textDocument);
+	pendingValidationRequests[textDocument.uri] = setTimeout(() => {
+		delete pendingValidationRequests[textDocument.uri];
+		validateTextDocument(textDocument);
+	}, validationDelayMs);
+}
+
+function validateTextDocument(textDocument: TextDocument, callback?: (diagnostics: Diagnostic[]) => void): void {
+	const respond = (diagnostics: Diagnostic[]) => {
+		connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+		if (callback) {
+			callback(diagnostics);
+		}
+	};
+	if (textDocument.getText().length === 0) {
+		respond([]); // ignore empty documents
+		return;
+	}
+	const version = textDocument.version;
+
+	let validator = new LibConfigValidation(Promise);
+
+	validator.doValidation(textDocument).then(diagnostics => {
+		setTimeout(() => {
+			const currDocument = documents.get(textDocument.uri);
+			if (currDocument && currDocument.version === version) {
+				respond(diagnostics); // Send the computed diagnostics to VSCode.
+			}
+		}, 100);
+	}, error => {
+		connection.console.error(formatError(`Error while validating ${textDocument.uri}`, error));
+	});
+}
+
+connection.onDidChangeWatchedFiles((change) => {
+	// Monitored files have changed in VSCode
+	let hasChanges = false;
+	if (hasChanges) {
+		documents.all().forEach(triggerValidation);
+	}
 });
 
 connection.onFoldingRanges((params, token) => {
@@ -166,23 +243,6 @@ connection.onFoldingRanges((params, token) => {
 	}, null, `Error while computing folding ranges for ${params.textDocument.uri}`, token);
 });
 
-connection.onDidOpenTextDocument((params) => {
-	// A text document got opened in VSCode.
-	// params.textDocument.uri uniquely identifies the document. For documents store on disk this is a file URI.
-	// params.textDocument.text the initial full content of the document.
-	connection.console.log(`${params.textDocument.uri} opened.`);
-});
-connection.onDidChangeTextDocument((params) => {
-	// The content of a text document did change in VSCode.
-	// params.textDocument.uri uniquely identifies the document.
-	// params.contentChanges describe the content changes to the document.
-	connection.console.log(`${params.textDocument.uri} changed: ${JSON.stringify(params.contentChanges)}`);
-});
-connection.onDidCloseTextDocument((params) => {
-	// A text document got closed in VSCode.
-	// params.textDocument.uri uniquely identifies the document.
-	connection.console.log(`${params.textDocument.uri} closed.`);
-});
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events

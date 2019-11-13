@@ -3,19 +3,12 @@
  * Copyright (c) Microsoft Corporation. All rights reserved.
  * Licensed under the MIT License. See License.txt in the project root for license information.
  * ------------------------------------------------------------------------------------------ */
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const vscode_languageserver_1 = require("vscode-languageserver");
 const runner_1 = require("./utils/runner");
 const libConfigFolding_1 = require("./folding/libConfigFolding");
 const libConfigValidation_1 = require("./validation/libConfigValidation");
+const path_1 = require("path");
 // Create a connection for the server. The connection uses Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 let connection = vscode_languageserver_1.createConnection(vscode_languageserver_1.ProposedFeatures.all);
@@ -57,6 +50,40 @@ connection.onInitialized(() => {
         });
     }
 });
+var LimitExceededWarnings;
+(function (LimitExceededWarnings) {
+    const pendingWarnings = {};
+    function cancel(uri) {
+        const warning = pendingWarnings[uri];
+        if (warning && warning.timeout) {
+            clearTimeout(warning.timeout);
+            delete pendingWarnings[uri];
+        }
+    }
+    LimitExceededWarnings.cancel = cancel;
+    function onResultLimitExceeded(uri, resultLimit, name) {
+        return () => {
+            let warning = pendingWarnings[uri];
+            if (warning) {
+                if (!warning.timeout) {
+                    // already shown
+                    return;
+                }
+                warning.features[name] = name;
+                warning.timeout.refresh();
+            }
+            else {
+                warning = { features: { [name]: name } };
+                warning.timeout = setTimeout(() => {
+                    connection.window.showInformationMessage(`${path_1.posix.basename(uri)}: For performance reasons, ${Object.keys(warning.features).join(' and ')} have been limited to ${resultLimit} items.`);
+                    warning.timeout = undefined;
+                }, 2000);
+                pendingWarnings[uri] = warning;
+            }
+        };
+    }
+    LimitExceededWarnings.onResultLimitExceeded = onResultLimitExceeded;
+})(LimitExceededWarnings || (LimitExceededWarnings = {}));
 // The global settings, used when the `workspace/configuration` request is not supported by the client.
 // Please note that this is not the case when using this server with the client provided in this example
 // but could happen with other clients.
@@ -73,7 +100,7 @@ connection.onDidChangeConfiguration(change => {
         globalSettings = ((change.settings.libConfigServer || defaultSettings));
     }
     // Revalidate all open text documents
-    documents.all().forEach(validateLibConfigDocument);
+    documents.all().forEach(triggerValidation);
 });
 function getDocumentSettings(resource) {
     if (!hasConfigurationCapability) {
@@ -89,27 +116,64 @@ function getDocumentSettings(resource) {
     }
     return result;
 }
-// Only keep settings for open documents
-documents.onDidClose(e => {
-    documentSettings.delete(e.document.uri);
-});
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
-documents.onDidChangeContent(change => {
-    validateLibConfigDocument(change.document);
+documents.onDidChangeContent((change) => {
+    LimitExceededWarnings.cancel(change.document.uri);
+    triggerValidation(change.document);
 });
-function validateLibConfigDocument(textDocument) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // In this simple example we get the settings for every validate run.
-        let settings = yield getDocumentSettings(textDocument.uri);
-        let diagnostics = libConfigValidation_1.doValidation(textDocument);
-        // Send the computed diagnostics to VSCode.
+// a document has closed: clear all diagnostics
+documents.onDidClose(event => {
+    LimitExceededWarnings.cancel(event.document.uri);
+    cleanPendingValidation(event.document);
+    connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] });
+});
+const pendingValidationRequests = {};
+const validationDelayMs = 500;
+function cleanPendingValidation(textDocument) {
+    const request = pendingValidationRequests[textDocument.uri];
+    if (request) {
+        clearTimeout(request);
+        delete pendingValidationRequests[textDocument.uri];
+    }
+}
+function triggerValidation(textDocument) {
+    cleanPendingValidation(textDocument);
+    pendingValidationRequests[textDocument.uri] = setTimeout(() => {
+        delete pendingValidationRequests[textDocument.uri];
+        validateTextDocument(textDocument);
+    }, validationDelayMs);
+}
+function validateTextDocument(textDocument, callback) {
+    const respond = (diagnostics) => {
         connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+        if (callback) {
+            callback(diagnostics);
+        }
+    };
+    if (textDocument.getText().length === 0) {
+        respond([]); // ignore empty documents
+        return;
+    }
+    const version = textDocument.version;
+    let validator = new libConfigValidation_1.LibConfigValidation(Promise);
+    validator.doValidation(textDocument).then(diagnostics => {
+        setTimeout(() => {
+            const currDocument = documents.get(textDocument.uri);
+            if (currDocument && currDocument.version === version) {
+                respond(diagnostics); // Send the computed diagnostics to VSCode.
+            }
+        }, 100);
+    }, error => {
+        connection.console.error(runner_1.formatError(`Error while validating ${textDocument.uri}`, error));
     });
 }
-connection.onDidChangeWatchedFiles(_change => {
-    // Monitored files have change in VSCode
-    connection.console.log('We received an file change event');
+connection.onDidChangeWatchedFiles((change) => {
+    // Monitored files have changed in VSCode
+    let hasChanges = false;
+    if (hasChanges) {
+        documents.all().forEach(triggerValidation);
+    }
 });
 connection.onFoldingRanges((params, token) => {
     return runner_1.runSafe(() => {
@@ -119,23 +183,6 @@ connection.onFoldingRanges((params, token) => {
         }
         return null;
     }, null, `Error while computing folding ranges for ${params.textDocument.uri}`, token);
-});
-connection.onDidOpenTextDocument((params) => {
-    // A text document got opened in VSCode.
-    // params.textDocument.uri uniquely identifies the document. For documents store on disk this is a file URI.
-    // params.textDocument.text the initial full content of the document.
-    connection.console.log(`${params.textDocument.uri} opened.`);
-});
-connection.onDidChangeTextDocument((params) => {
-    // The content of a text document did change in VSCode.
-    // params.textDocument.uri uniquely identifies the document.
-    // params.contentChanges describe the content changes to the document.
-    connection.console.log(`${params.textDocument.uri} changed: ${JSON.stringify(params.contentChanges)}`);
-});
-connection.onDidCloseTextDocument((params) => {
-    // A text document got closed in VSCode.
-    // params.textDocument.uri uniquely identifies the document.
-    connection.console.log(`${params.textDocument.uri} closed.`);
 });
 // Make the text document manager listen on the connection
 // for open, change and close text document events
