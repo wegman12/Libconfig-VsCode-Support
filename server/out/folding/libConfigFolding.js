@@ -1,5 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const scanError_1 = require("../dataClasses/scanError");
+const syntaxKind_1 = require("../dataClasses/syntaxKind");
 const generateScanner_1 = require("../scanner/impl/generateScanner");
 const vscode_languageserver_1 = require("vscode-languageserver");
 function getFoldingRanges(document, context) {
@@ -14,24 +16,24 @@ function getFoldingRanges(document, context) {
         ranges.push(range);
         nestingLevels.push(stack.length);
     }
-    while (token !== 21 /* EOF */) {
+    while (token !== syntaxKind_1.SyntaxKind.EOF) {
         switch (token) {
-            case 1 /* OpenBraceToken */:
-            case 5 /* OpenBracketToken */:
-            case 3 /* OpenParenToken */: {
+            case syntaxKind_1.SyntaxKind.OpenBraceToken:
+            case syntaxKind_1.SyntaxKind.OpenBracketToken:
+            case syntaxKind_1.SyntaxKind.OpenParenToken: {
                 let startLine = document.positionAt(scanner.getTokenOffset()).line;
                 let range = {
                     startLine,
                     endLine: startLine,
-                    kind: token === 1 /* OpenBraceToken */ ? 'object' : 'array'
+                    kind: token === syntaxKind_1.SyntaxKind.OpenBraceToken ? 'object' : 'array'
                 };
                 stack.push(range);
                 break;
             }
-            case 2 /* CloseBraceToken */:
-            case 6 /* CloseBracketToken */:
-            case 4 /* CloseParenToken */: {
-                let kind = token === 2 /* CloseBraceToken */ ? 'object' : 'array';
+            case syntaxKind_1.SyntaxKind.CloseBraceToken:
+            case syntaxKind_1.SyntaxKind.CloseBracketToken:
+            case syntaxKind_1.SyntaxKind.CloseParenToken: {
+                let kind = token === syntaxKind_1.SyntaxKind.CloseBraceToken ? 'object' : 'array';
                 if (stack.length > 0 && stack[stack.length - 1].kind === kind) {
                     let range = stack.pop();
                     let line = document.positionAt(scanner.getTokenOffset()).line;
@@ -43,12 +45,12 @@ function getFoldingRanges(document, context) {
                 }
                 break;
             }
-            case 17 /* BlockCommentTrivia */: {
+            case syntaxKind_1.SyntaxKind.BlockCommentTrivia: {
                 let startLine = document.positionAt(scanner.getTokenOffset())
                     .line;
                 let endLine = document.positionAt(scanner.getTokenOffset() + scanner.getTokenLength())
                     .line;
-                if (scanner.getTokenError() === 1 /* UnexpectedEndOfComment */ &&
+                if (scanner.getTokenError() === scanError_1.ScanError.UnexpectedEndOfComment &&
                     startLine + 1 < document.lineCount) {
                     scanner.setPosition(document.offsetAt(vscode_languageserver_1.Position.create(startLine + 1, 0)));
                 }
@@ -64,7 +66,7 @@ function getFoldingRanges(document, context) {
                 }
                 break;
             }
-            case 16 /* LineCommentTrivia */: {
+            case syntaxKind_1.SyntaxKind.LineCommentTrivia: {
                 let text = document.getText().substr(scanner.getTokenOffset(), scanner.getTokenLength());
                 let m = text.match(/^\/\/\s*#(region\b)|(endregion\b)/);
                 if (m) {

@@ -1,6 +1,6 @@
 'use strict';
 
-export const enum SyntaxKind {
+export enum SyntaxKind {
 	OpenBraceToken = 1,
 	CloseBraceToken = 2,
 	OpenParenToken = 3,

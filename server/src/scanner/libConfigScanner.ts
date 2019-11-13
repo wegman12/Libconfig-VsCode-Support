@@ -1,7 +1,5 @@
 'use strict';
-
-import { SyntaxKind } from './syntaxKind';
-import { ScanError } from './scanError';
+import { SyntaxKind, ScanError } from '../dataClasses';
 
 /**
  * The scanner object, representing a JSON scanner at a position in the input string.

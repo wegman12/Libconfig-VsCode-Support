@@ -1,6 +1,6 @@
 'use strict';
 
-export const enum ScanError {
+export enum ScanError {
 	None = 0,
 	UnexpectedEndOfComment = 1,
 	UnexpectedEndOfString = 2,

@@ -1,12 +1,14 @@
 'use strict';
 Object.defineProperty(exports, "__esModule", { value: true });
+const syntaxKind_1 = require("../../dataClasses/syntaxKind");
+const scanError_1 = require("../../dataClasses/scanError");
 /**
  * Creates a libconfig scanner on the given text.
  * If ignoreTrivia is set, whitespaces or comments are ignored.
  */
 function CreateDefaultScanner(text, ignoreTrivia = false) {
     const len = text.length;
-    let pos = 0, value = '', tokenOffset = 0, token = 20 /* Unknown */, lineNumber = 0, lineStartOffset = 0, tokenLineStartOffset = 0, prevTokenLineStartOffset = 0, scanError = 0 /* None */;
+    let pos = 0, value = '', tokenOffset = 0, token = syntaxKind_1.SyntaxKind.Unknown, lineNumber = 0, lineStartOffset = 0, tokenLineStartOffset = 0, prevTokenLineStartOffset = 0, scanError = scanError_1.ScanError.None;
     function scanHexDigits(count, exact) {
         let digits = 0;
         let value = 0;
@@ -36,8 +38,8 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
         pos = newPosition;
         value = '';
         tokenOffset = 0;
-        token = 20 /* Unknown */;
-        scanError = 0 /* None */;
+        token = syntaxKind_1.SyntaxKind.Unknown;
+        scanError = scanError_1.ScanError.None;
     }
     function scanNumber() {
         let start = pos;
@@ -59,7 +61,7 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
                 }
             }
             else {
-                scanError = 3 /* UnexpectedEndOfNumber */;
+                scanError = scanError_1.ScanError.UnexpectedEndOfNumber;
                 return text.substring(start, pos);
             }
         }
@@ -77,7 +79,7 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
                 end = pos;
             }
             else {
-                scanError = 3 /* UnexpectedEndOfNumber */;
+                scanError = scanError_1.ScanError.UnexpectedEndOfNumber;
             }
         }
         return text.substring(start, end);
@@ -87,7 +89,7 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
         while (true) {
             if (pos >= len) {
                 result += text.substring(start, pos);
-                scanError = 2 /* UnexpectedEndOfString */;
+                scanError = scanError_1.ScanError.UnexpectedEndOfString;
                 break;
             }
             const ch = text.charCodeAt(pos);
@@ -100,7 +102,7 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
                 result += text.substring(start, pos);
                 pos++;
                 if (pos >= len) {
-                    scanError = 2 /* UnexpectedEndOfString */;
+                    scanError = scanError_1.ScanError.UnexpectedEndOfString;
                     break;
                 }
                 const ch2 = text.charCodeAt(pos++);
@@ -135,11 +137,11 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
                             result += String.fromCharCode(ch3);
                         }
                         else {
-                            scanError = 4 /* InvalidUnicode */;
+                            scanError = scanError_1.ScanError.InvalidUnicode;
                         }
                         break;
                     default:
-                        scanError = 5 /* InvalidEscapeCharacter */;
+                        scanError = scanError_1.ScanError.InvalidEscapeCharacter;
                 }
                 start = pos;
                 continue;
@@ -147,11 +149,11 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
             if (ch >= 0 && ch <= 0x1f) {
                 if (isLineBreak(ch)) {
                     result += text.substring(start, pos);
-                    scanError = 2 /* UnexpectedEndOfString */;
+                    scanError = scanError_1.ScanError.UnexpectedEndOfString;
                     break;
                 }
                 else {
-                    scanError = 6 /* InvalidCharacter */;
+                    scanError = scanError_1.ScanError.InvalidCharacter;
                     // mark as error but continue with string
                 }
             }
@@ -169,14 +171,14 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
     }
     function scanNext() {
         value = '';
-        scanError = 0 /* None */;
+        scanError = scanError_1.ScanError.None;
         tokenOffset = pos;
         lineStartOffset = lineNumber;
         prevTokenLineStartOffset = tokenLineStartOffset;
         if (pos >= len) {
             // at the end
             tokenOffset = len;
-            return token = 21 /* EOF */;
+            return token = syntaxKind_1.SyntaxKind.EOF;
         }
         let code = text.charCodeAt(pos);
         // trivia: whitespace
@@ -186,7 +188,7 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
                 value += String.fromCharCode(code);
                 code = text.charCodeAt(pos);
             } while (isWhiteSpace(code));
-            return token = 19 /* Trivia */;
+            return token = syntaxKind_1.SyntaxKind.Trivia;
         }
         // trivia: newlines
         if (isLineBreak(code)) {
@@ -198,44 +200,44 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
             }
             lineNumber++;
             tokenLineStartOffset = pos;
-            return token = 18 /* LineBreakTrivia */;
+            return token = syntaxKind_1.SyntaxKind.LineBreakTrivia;
         }
         switch (code) {
             case 123 /* openBrace */:
                 pos++;
-                return token = 1 /* OpenBraceToken */;
+                return token = syntaxKind_1.SyntaxKind.OpenBraceToken;
             case 125 /* closeBrace */:
                 pos++;
-                return token = 2 /* CloseBraceToken */;
+                return token = syntaxKind_1.SyntaxKind.CloseBraceToken;
             case 40 /* openParen */:
                 pos++;
-                return token = 3 /* OpenParenToken */;
+                return token = syntaxKind_1.SyntaxKind.OpenParenToken;
             case 41 /* closeParen */:
                 pos++;
-                return token = 4 /* CloseParenToken */;
+                return token = syntaxKind_1.SyntaxKind.CloseParenToken;
             case 91 /* openBracket */:
                 pos++;
-                return token = 5 /* OpenBracketToken */;
+                return token = syntaxKind_1.SyntaxKind.OpenBracketToken;
             case 93 /* closeBracket */:
                 pos++;
-                return token = 6 /* CloseBracketToken */;
+                return token = syntaxKind_1.SyntaxKind.CloseBracketToken;
             case 58 /* colon */:
                 pos++;
-                return token = 8 /* ColonToken */;
+                return token = syntaxKind_1.SyntaxKind.ColonToken;
             case 44 /* comma */:
                 pos++;
-                return token = 7 /* CommaToken */;
+                return token = syntaxKind_1.SyntaxKind.CommaToken;
             case 61 /* equals */:
                 pos++;
-                return token = 9 /* EqualToken */;
+                return token = syntaxKind_1.SyntaxKind.EqualToken;
             case 59 /* semicolon */:
                 pos++;
-                return token = 10 /* SemicolonToken */;
+                return token = syntaxKind_1.SyntaxKind.SemicolonToken;
             // strings
             case 34 /* doubleQuote */:
                 pos++;
                 value = scanString();
-                return token = 13 /* StringLiteral */;
+                return token = syntaxKind_1.SyntaxKind.StringLiteral;
             // comments
             case 47 /* slash */:
                 const start = pos - 1;
@@ -249,7 +251,7 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
                         pos++;
                     }
                     value = text.substring(start, pos);
-                    return token = 16 /* LineCommentTrivia */;
+                    return token = syntaxKind_1.SyntaxKind.LineCommentTrivia;
                 }
                 // Multi-line comment
                 if (text.charCodeAt(pos + 1) === 42 /* asterisk */) {
@@ -274,15 +276,15 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
                     }
                     if (!commentClosed) {
                         pos++;
-                        scanError = 1 /* UnexpectedEndOfComment */;
+                        scanError = scanError_1.ScanError.UnexpectedEndOfComment;
                     }
                     value = text.substring(start, pos);
-                    return token = 17 /* BlockCommentTrivia */;
+                    return token = syntaxKind_1.SyntaxKind.BlockCommentTrivia;
                 }
                 // just a single slash
                 value += String.fromCharCode(code);
                 pos++;
-                return token = 20 /* Unknown */;
+                return token = syntaxKind_1.SyntaxKind.Unknown;
             case 35 /* hash */:
                 const s2 = pos - 1;
                 pos++;
@@ -293,12 +295,12 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
                     pos++;
                 }
                 value = text.substring(s2, pos);
-                return token = 16 /* LineCommentTrivia */;
+                return token = syntaxKind_1.SyntaxKind.LineCommentTrivia;
             case 45 /* minus */:
                 value += String.fromCharCode(code);
                 pos++;
                 if (pos === len || !isDigit(text.charCodeAt(pos))) {
-                    return token = 20 /* Unknown */;
+                    return token = syntaxKind_1.SyntaxKind.Unknown;
                 }
             // found a minus, followed by a number so
             // we fall through to proceed with scanning
@@ -314,7 +316,7 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
             case 56 /* _8 */:
             case 57 /* _9 */:
                 value += scanNumber();
-                return token = 14 /* NumericLiteral */;
+                return token = syntaxKind_1.SyntaxKind.NumericLiteral;
             // literals and unknown symbols
             default:
                 if (isValidPropertyCharacterStart(code)) {
@@ -322,10 +324,10 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
                     value = scanPropertyName();
                     // keywords: true, false
                     switch (value) {
-                        case 'true': return token = 11 /* TrueKeyword */;
-                        case 'false': return token = 12 /* FalseKeyword */;
+                        case 'true': return token = syntaxKind_1.SyntaxKind.TrueKeyword;
+                        case 'false': return token = syntaxKind_1.SyntaxKind.FalseKeyword;
                     }
-                    return token = 15 /* PropertyName */;
+                    return token = syntaxKind_1.SyntaxKind.PropertyName;
                 }
                 // is a literal? Read the full word.
                 while (pos < len && isUnknownContentCharacter(code)) {
@@ -336,15 +338,15 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
                     value = text.substring(tokenOffset, pos);
                     // keywords: true, false, null
                     switch (value) {
-                        case 'true': return token = 11 /* TrueKeyword */;
-                        case 'false': return token = 12 /* FalseKeyword */;
+                        case 'true': return token = syntaxKind_1.SyntaxKind.TrueKeyword;
+                        case 'false': return token = syntaxKind_1.SyntaxKind.FalseKeyword;
                     }
-                    return token = 20 /* Unknown */;
+                    return token = syntaxKind_1.SyntaxKind.Unknown;
                 }
                 // some
                 value += String.fromCharCode(code);
                 pos++;
-                return token = 20 /* Unknown */;
+                return token = syntaxKind_1.SyntaxKind.Unknown;
         }
     }
     function isUnknownContentCharacter(code) {
@@ -368,7 +370,7 @@ function CreateDefaultScanner(text, ignoreTrivia = false) {
         let result;
         do {
             result = scanNext();
-        } while (result >= 16 /* LineCommentTrivia */ && result <= 19 /* Trivia */);
+        } while (result >= syntaxKind_1.SyntaxKind.LineCommentTrivia && result <= syntaxKind_1.SyntaxKind.Trivia);
         return result;
     }
     return {

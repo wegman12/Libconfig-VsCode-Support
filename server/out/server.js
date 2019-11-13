@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const vscode_languageserver_1 = require("vscode-languageserver");
 const runner_1 = require("./utils/runner");
 const libConfigFolding_1 = require("./folding/libConfigFolding");
+const libConfigValidation_1 = require("./validation/libConfigValidation");
 // Create a connection for the server. The connection uses Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 let connection = vscode_languageserver_1.createConnection(vscode_languageserver_1.ProposedFeatures.all);
@@ -101,43 +102,7 @@ function validateLibConfigDocument(textDocument) {
     return __awaiter(this, void 0, void 0, function* () {
         // In this simple example we get the settings for every validate run.
         let settings = yield getDocumentSettings(textDocument.uri);
-        // The validator creates diagnostics for all uppercase words length 2 and more
-        let text = textDocument.getText();
-        let pattern = /\b[A-Z]{2,}\b/g;
-        let m;
-        let problems = 0;
-        let diagnostics = [];
-        while ((m = pattern.exec(text)) && problems < settings.maxNumberOfProblems) {
-            problems++;
-            let diagnostic = {
-                severity: vscode_languageserver_1.DiagnosticSeverity.Warning,
-                range: {
-                    start: textDocument.positionAt(m.index),
-                    end: textDocument.positionAt(m.index + m[0].length)
-                },
-                message: `${m[0]} is all uppercase.`,
-                source: 'ex'
-            };
-            if (hasDiagnosticRelatedInformationCapability) {
-                diagnostic.relatedInformation = [
-                    {
-                        location: {
-                            uri: textDocument.uri,
-                            range: Object.assign({}, diagnostic.range)
-                        },
-                        message: 'Spelling matters'
-                    },
-                    {
-                        location: {
-                            uri: textDocument.uri,
-                            range: Object.assign({}, diagnostic.range)
-                        },
-                        message: 'Particularly for names'
-                    }
-                ];
-            }
-            diagnostics.push(diagnostic);
-        }
+        let diagnostics = libConfigValidation_1.doValidation(textDocument);
         // Send the computed diagnostics to VSCode.
         connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
     });

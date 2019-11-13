@@ -1,8 +1,8 @@
 'use strict';
 
 import { LibConfigScanner } from '../libConfigScanner';
-import { SyntaxKind } from '../syntaxKind';
-import { ScanError } from '../scanError';
+import { SyntaxKind } from '../../dataClasses/syntaxKind';
+import { ScanError } from '../../dataClasses/scanError';
 import { CharacterCodes } from '../characterCodes';
 
 /**

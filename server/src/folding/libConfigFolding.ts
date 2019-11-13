@@ -1,5 +1,5 @@
-import { ScanError } from '../scanner/scanError';
-import { SyntaxKind } from '../scanner/syntaxKind';
+import { ScanError } from '../dataClasses/scanError';
+import { SyntaxKind } from '../dataClasses/syntaxKind';
 import { CreateDefaultScanner } from '../scanner/impl/generateScanner';
 import { TextDocument, FoldingRangeKind, FoldingRange, Position } from 'vscode-languageserver';
 import { FoldingRangesContext } from './foldingRangesContext';
