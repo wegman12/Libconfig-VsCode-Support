@@ -1,5 +1,5 @@
 {
-    "name": "cfg",
+    "name": "cfg-language-features",
     "displayName": "LibConfig",
     "description": "C++ Configuration Library Syntax Highlighter and Refactoring Agent",
     "version": "0.0.1",

@@ -13,6 +13,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const vscode_languageserver_1 = require("vscode-languageserver");
+const runner_1 = require("./utils/runner");
+const libConfigFolding_1 = require("./folding/libConfigFolding");
 // Create a connection for the server. The connection uses Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
 let connection = vscode_languageserver_1.createConnection(vscode_languageserver_1.ProposedFeatures.all);
@@ -38,7 +40,8 @@ connection.onInitialize((params) => {
             // Tell the client that the server supports code completion
             completionProvider: {
                 resolveProvider: true
-            }
+            },
+            foldingRangeProvider: true
         }
     };
 });
@@ -104,37 +107,37 @@ function validateLibConfigDocument(textDocument) {
         let m;
         let problems = 0;
         let diagnostics = [];
-        // while ((m = pattern.exec(text)) && problems < settings.maxNumberOfProblems) {
-        // 	problems++;
-        // 	let diagnostic: Diagnostic = {
-        // 		severity: DiagnosticSeverity.Warning,
-        // 		range: {
-        // 			start: textDocument.positionAt(m.index),
-        // 			end: textDocument.positionAt(m.index + m[0].length)
-        // 		},
-        // 		message: `${m[0]} is all uppercase.`,
-        // 		source: 'ex'
-        // 	};
-        // 	if (hasDiagnosticRelatedInformationCapability) {
-        // 		diagnostic.relatedInformation = [
-        // 			{
-        // 				location: {
-        // 					uri: textDocument.uri,
-        // 					range: Object.assign({}, diagnostic.range)
-        // 				},
-        // 				message: 'Spelling matters'
-        // 			},
-        // 			{
-        // 				location: {
-        // 					uri: textDocument.uri,
-        // 					range: Object.assign({}, diagnostic.range)
-        // 				},
-        // 				message: 'Particularly for names'
-        // 			}
-        // 		];
-        // 	}
-        // 	diagnostics.push(diagnostic);
-        // }
+        while ((m = pattern.exec(text)) && problems < settings.maxNumberOfProblems) {
+            problems++;
+            let diagnostic = {
+                severity: vscode_languageserver_1.DiagnosticSeverity.Warning,
+                range: {
+                    start: textDocument.positionAt(m.index),
+                    end: textDocument.positionAt(m.index + m[0].length)
+                },
+                message: `${m[0]} is all uppercase.`,
+                source: 'ex'
+            };
+            if (hasDiagnosticRelatedInformationCapability) {
+                diagnostic.relatedInformation = [
+                    {
+                        location: {
+                            uri: textDocument.uri,
+                            range: Object.assign({}, diagnostic.range)
+                        },
+                        message: 'Spelling matters'
+                    },
+                    {
+                        location: {
+                            uri: textDocument.uri,
+                            range: Object.assign({}, diagnostic.range)
+                        },
+                        message: 'Particularly for names'
+                    }
+                ];
+            }
+            diagnostics.push(diagnostic);
+        }
         // Send the computed diagnostics to VSCode.
         connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
     });
@@ -142,6 +145,15 @@ function validateLibConfigDocument(textDocument) {
 connection.onDidChangeWatchedFiles(_change => {
     // Monitored files have change in VSCode
     connection.console.log('We received an file change event');
+});
+connection.onFoldingRanges((params, token) => {
+    return runner_1.runSafe(() => {
+        const document = documents.get(params.textDocument.uri);
+        if (document) {
+            return libConfigFolding_1.getFoldingRanges(document);
+        }
+        return null;
+    }, null, `Error while computing folding ranges for ${params.textDocument.uri}`, token);
 });
 connection.onDidOpenTextDocument((params) => {
     // A text document got opened in VSCode.
