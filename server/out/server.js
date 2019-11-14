@@ -8,6 +8,7 @@ const vscode_languageserver_1 = require("vscode-languageserver");
 const runner_1 = require("./utils/runner");
 const libConfigFolding_1 = require("./folding/libConfigFolding");
 const libConfigValidation_1 = require("./validation/libConfigValidation");
+const libConfigFormat_1 = require("./format/libConfigFormat");
 const path_1 = require("path");
 // Create a connection for the server. The connection uses Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -35,7 +36,8 @@ connection.onInitialize((params) => {
             completionProvider: {
                 resolveProvider: true
             },
-            foldingRangeProvider: true
+            foldingRangeProvider: true,
+            documentFormattingProvider: true
         }
     };
 });
@@ -183,6 +185,17 @@ connection.onFoldingRanges((params, token) => {
         }
         return null;
     }, null, `Error while computing folding ranges for ${params.textDocument.uri}`, token);
+});
+connection.onDocumentFormatting((formatParams, token) => {
+    return runner_1.runSafe(() => {
+        const document = documents.get(formatParams.textDocument.uri);
+        if (document) {
+            return libConfigFormat_1.FormatLibConfigDocument(document.getText(), formatParams.options).map(e => {
+                return vscode_languageserver_1.TextEdit.replace(vscode_languageserver_1.Range.create(document.positionAt(e.offset), document.positionAt(e.offset + e.length)), e.content);
+            });
+        }
+        return [];
+    }, [], `Error while formatting for ${formatParams.textDocument.uri}`, token);
 });
 // Make the text document manager listen on the connection
 // for open, change and close text document events

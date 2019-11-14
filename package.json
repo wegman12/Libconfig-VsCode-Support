@@ -3,6 +3,7 @@
     "displayName": "LibConfig",
     "description": "C++ Configuration Library Syntax Highlighter and Refactoring Agent",
     "version": "0.0.1",
+    "publisher": "wegman12",
     "repository": {
         "type": "git",
         "url": "https://github.com/wegman12/Libconfig-VsCode-Support"

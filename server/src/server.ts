@@ -8,16 +8,11 @@ import {
 	TextDocuments,
 	TextDocument,
 	Diagnostic,
-	DiagnosticSeverity,
 	ProposedFeatures,
 	InitializeParams,
 	DidChangeConfigurationNotification,
-	CompletionItem,
-	CompletionItemKind,
-	TextDocumentPositionParams,
-	CancellationToken,
-	ResponseError,
-	ErrorCodes
+	TextEdit,
+	Range
 } from 'vscode-languageserver';
 
 import { 
@@ -29,7 +24,12 @@ import {
 import {
 	getFoldingRanges
 } from './folding/libConfigFolding';
+
 import { LibConfigValidation } from './validation/libConfigValidation';
+
+import {
+	FormatLibConfigDocument
+} from './format/libConfigFormat';
 
 import { posix } from 'path';
 
@@ -72,7 +72,8 @@ connection.onInitialize((params: InitializeParams) => {
 			completionProvider: {
 				resolveProvider: true
 			},
-			foldingRangeProvider: true
+			foldingRangeProvider: true,
+			documentFormattingProvider: true
 		}
 	};
 });
@@ -241,6 +242,18 @@ connection.onFoldingRanges((params, token) => {
 		}
 		return null;
 	}, null, `Error while computing folding ranges for ${params.textDocument.uri}`, token);
+});
+
+connection.onDocumentFormatting((formatParams, token) =>{
+	return runSafe(() => {
+		const document = documents.get(formatParams.textDocument.uri);
+		if (document) {
+			return FormatLibConfigDocument(document.getText(),formatParams.options).map(e => {
+				return TextEdit.replace(Range.create(document.positionAt(e.offset), document.positionAt(e.offset + e.length)), e.content);
+			});
+		}
+		return [];
+	}, [], `Error while formatting for ${formatParams.textDocument.uri}`, token);
 });
 
 
