@@ -1,9 +1,6 @@
 'use strict';
 
-export interface LibConfigProperty {
-	readonly name: string;
-	readonly value: BaseLibConfigNode;
-}
+import { BaseLibConfigNodeImpl } from './nodeImplementations';
 
 export type LibConfigNode = 
 	ObjectLibConfigNode |
@@ -14,29 +11,41 @@ export type LibConfigNode =
 
 export interface BaseLibConfigNode {
 	readonly type: 'object' | 'array' | 'list' | 'property' | 'string' | 'number' | 'boolean';
-	readonly parent?: ObjectLibConfigNode | LibConfigProperty;
-	readonly offset: number;
-	readonly length: number;
-	readonly children?: ScalarLibConfigNode[] | LibConfigNode[] | LibConfigProperty[];
-	readonly value?: string | boolean | number | null;
+	readonly parent: ObjectLibConfigNode | LibConfigPropertyNode | null;
+	offset: number;
+	length: number;
+	readonly children?: ScalarLibConfigNode[] | BaseLibConfigNode[] | LibConfigPropertyNode[];
+	readonly value?: string | boolean | number | BaseLibConfigNode;
 
-	addChild (child: ScalarLibConfigNode | LibConfigNode | LibConfigProperty): void;
+	addChild (child: ScalarLibConfigNode | BaseLibConfigNode | LibConfigPropertyNode): void;
 }
+
+export interface LibConfigPropertyNode extends BaseLibConfigNode {
+	readonly type: 'property';
+	name: string;
+	readonly parent: ObjectLibConfigNode | null;
+	readonly value: BaseLibConfigNode;
+}
+
 export interface ObjectLibConfigNode extends BaseLibConfigNode {
 	readonly type: 'object';
-	readonly children: LibConfigProperty[];
+	readonly parent: LibConfigPropertyNode;
+	readonly children: LibConfigPropertyNode[];
 }
 export interface ArrayLibConfigNode extends BaseLibConfigNode {
 	readonly type: 'array';
+	readonly parent: LibConfigPropertyNode;
 	readonly children: ScalarLibConfigNode[];
 }
 export interface ListLibConfigNode extends BaseLibConfigNode {
 	readonly type: 'list';
-	readonly children: LibConfigNode[];
+	readonly parent: LibConfigPropertyNode;
+	readonly children: BaseLibConfigNode[];
 }
 
 export interface ScalarLibConfigNode extends BaseLibConfigNode {
 	readonly type: 'string' | 'number' | 'boolean';
+	readonly parent: LibConfigPropertyNode;
 	readonly value: string | boolean | number;
 }
 

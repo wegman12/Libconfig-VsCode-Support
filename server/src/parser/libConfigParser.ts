@@ -14,7 +14,18 @@ import {
 	LibConfigDocument,
 	SyntaxKind,
 	ErrorCode,
-	SettingKind
+	SettingKind,
+	LibConfigProperty,
+	BaseLibConfigNode,
+	NumberLibConfigNodeImpl,
+	LibConfigPropertyImpl,
+	BooelanLibConfigNodeImpl,
+	StringLibConfigNodeImpl,
+	ObjectLibConfigNode,
+	ObjectLibConfigNodeImpl,
+	ListLibConfigNode,
+	ArrayLibConfigNode,
+	ListLibConfigNodeImpl
 } from '../dataClasses';
 import * as nls from 'vscode-nls';
 import {
@@ -51,7 +62,8 @@ export function ParseLibConfigDocument(textDocument: TextDocument): LibConfigDoc
 		}
 	}
 
-	function _parseSetting() {
+	function _parseSetting(
+		parent?: ObjectLibConfigNode | LibConfigProperty) : LibConfigProperty | undefined {
 		if (scanner.getToken() !== SyntaxKind.PropertyName) {
 			_error(
 				localize('ExpectedProperty', "Expected a property value name"),
@@ -59,6 +71,9 @@ export function ParseLibConfigDocument(textDocument: TextDocument): LibConfigDoc
 				[SyntaxKind.SemicolonToken]);
 			return;
 		}
+		let setting = new LibConfigPropertyImpl(
+			scanner.getTokenValue()
+		);
 		let token = _scanNext();
 		if (token !== SyntaxKind.EqualToken && token !== SyntaxKind.ColonToken) {
 			_error(
@@ -68,32 +83,52 @@ export function ParseLibConfigDocument(textDocument: TextDocument): LibConfigDoc
 			);
 			return;
 		}
-		_parseValue();
+		let value = _parseValue(setting);
+		setting.value = value;
+		setting.parent = parent;
 		_parseTerminator();
+
+		return setting;
 	}
 
-	function _parseValue(scan : boolean = true): SettingKind {
+	function _parseValue(
+		parent: LibConfigProperty,
+		scan: boolean = true
+	):
+		BaseLibConfigNode | undefined {
 		let token = scan ? _scanNext() : scanner.getToken();
 		switch (token) {
 			case SyntaxKind.OpenBraceToken:
 				// Parse Group
-				_parseGroup();
-				return SettingKind.Group;
+				return _parseGroup(parent);
 			case SyntaxKind.OpenParenToken:
 				// Parse List
-				_parseList();
-				return SettingKind.List;
+				return _parseList(parent);
 			case SyntaxKind.OpenBracketToken:
 				// Parse Array
-				_parseArray();
-				return SettingKind.Array;
+				return _parseArray(parent);
 			case SyntaxKind.NumericLiteral:
-				return SettingKind.Number;
+				return new NumberLibConfigNodeImpl(
+					parent,
+					scanner.getTokenOffset(),
+					scanner.getTokenLength(),
+					parseFloat(scanner.getTokenValue())
+				);
 			case SyntaxKind.TrueKeyword:
 			case SyntaxKind.FalseKeyword:
-				return SettingKind.Number;
+				return new BooelanLibConfigNodeImpl(
+					parent,
+					scanner.getTokenOffset(),
+					scanner.getTokenLength(),
+					scanner.getTokenValue().toLowerCase() === 'true'
+				);	
 			case SyntaxKind.StringLiteral:
-				return SettingKind.String;
+				return new StringLibConfigNodeImpl(
+					parent,
+					scanner.getTokenOffset(),
+					scanner.getTokenLength(),
+					scanner.getTokenValue()
+				);	
 			default:
 				_error(
 					localize('UnrecognizedType', 'Expected setting type kind value'),
@@ -101,29 +136,52 @@ export function ParseLibConfigDocument(textDocument: TextDocument): LibConfigDoc
 					[],
 					[SyntaxKind.SemicolonToken]
 				);
-				return SettingKind.Invalid;
+				return;
 		}
 	}
 
-	function _parseGroup() {
+	function _parseGroup(parent: LibConfigProperty) : ObjectLibConfigNode | undefined {
+		let start = scanner.getTokenOffset()
 		// Move to next token
 		_scanNext();
+
+		let properties: LibConfigProperty[] = [];
+
 		while (
 			scanner.getToken() !== SyntaxKind.CloseBraceToken &&
 			scanner.getToken() !== SyntaxKind.EOF
-			) {
-			_parseSetting();
+		) {
+			let setting = _parseSetting(parent);
+			if(setting)
+				properties.push(setting);
 		}
+		return new ObjectLibConfigNodeImpl(
+			parent,
+			start,
+			scanner.getPosition() - start,
+			properties
+		);
 	}
 
-	function _parseList() {
+	function _parseList(parent: LibConfigProperty) : ListLibConfigNode | undefined {
+		let start = scanner.getTokenOffset();
+
 		// Move to next token
 		_scanNext();
 		if (scanner.getToken() === SyntaxKind.CloseParenToken) {
 			return;
 		}
 
-		_parseValue(false);
+		let list = new ListLibConfigNodeImpl(
+			parent,
+			scanner.getTokenOffset(),
+			scanner.getTokenLength(),
+			[]
+		);
+
+		var value = _parseValue(parent, false);
+		if(value)
+			list.addChild(value);
 
 		let nextToken = _scanNext();
 
@@ -139,12 +197,12 @@ export function ParseLibConfigDocument(textDocument: TextDocument): LibConfigDoc
 				);
 				continue;
 			}
-			_parseValue();
+			_parseValue(parent);
 			nextToken = _scanNext();
 		}
 	}
 
-	function _parseArray() {
+	function _parseArray(parent: LibConfigProperty) : ArrayLibConfigNode {
 		// Move to next token
 		_scanNext();
 		if (scanner.getToken() === SyntaxKind.CloseBracketToken) {
