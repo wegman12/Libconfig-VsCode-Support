@@ -14,7 +14,22 @@ import {
 	LibConfigDocument,
 	SyntaxKind,
 	ErrorCode,
-	SettingKind
+	SettingKind,
+	LibConfigPropertyNode,
+	BaseLibConfigNode,
+	NumberLibConfigNodeImpl,
+	LibConfigPropertyNodeImpl,
+	BooelanLibConfigNodeImpl,
+	StringLibConfigNodeImpl,
+	ObjectLibConfigNode,
+	ObjectLibConfigNodeImpl,
+	ListLibConfigNode,
+	ArrayLibConfigNode,
+	ListLibConfigNodeImpl,
+	ScalarLibConfigNodeImpl,
+	BaseLibConfigNodeImpl,
+	ScalarLibConfigNode,
+	ArrayLibConfigNodeImpl
 } from '../dataClasses';
 import * as nls from 'vscode-nls';
 import {
@@ -51,7 +66,8 @@ export function ParseLibConfigDocument(textDocument: TextDocument): LibConfigDoc
 		}
 	}
 
-	function _parseSetting() {
+	function _parseSetting(
+		parent: ObjectLibConfigNode | LibConfigPropertyNode | null) : LibConfigPropertyNode | undefined {
 		if (scanner.getToken() !== SyntaxKind.PropertyName) {
 			_error(
 				localize('ExpectedProperty', "Expected a property value name"),
@@ -59,6 +75,14 @@ export function ParseLibConfigDocument(textDocument: TextDocument): LibConfigDoc
 				[SyntaxKind.SemicolonToken]);
 			return;
 		}
+
+		let setting = new LibConfigPropertyNodeImpl(
+			parent,
+			scanner.getTokenOffset(),
+			0,
+			scanner.getTokenValue(), 
+			null
+		);
 		let token = _scanNext();
 		if (token !== SyntaxKind.EqualToken && token !== SyntaxKind.ColonToken) {
 			_error(
@@ -66,34 +90,54 @@ export function ParseLibConfigDocument(textDocument: TextDocument): LibConfigDoc
 				ErrorCode.ColonExpected,
 				[SyntaxKind.SemicolonToken]
 			);
-			return;
+			setting.length = scanner.getPosition() - setting.offset;
+			return setting;
 		}
-		_parseValue();
+		setting.value = _parseValue(setting);
+		setting.length = scanner.getPosition() - setting.offset;
 		_parseTerminator();
+
+		return setting;
 	}
 
-	function _parseValue(scan : boolean = true): SettingKind {
+	function _parseValue(
+		parent: LibConfigPropertyNode | ListLibConfigNode,
+		scan: boolean = true
+	):
+		BaseLibConfigNode | null {
 		let token = scan ? _scanNext() : scanner.getToken();
 		switch (token) {
 			case SyntaxKind.OpenBraceToken:
 				// Parse Group
-				_parseGroup();
-				return SettingKind.Group;
+				return _parseGroup(parent);
 			case SyntaxKind.OpenParenToken:
 				// Parse List
-				_parseList();
-				return SettingKind.List;
+				return _parseList(parent);
 			case SyntaxKind.OpenBracketToken:
 				// Parse Array
-				_parseArray();
-				return SettingKind.Array;
+				return _parseArray(parent);
 			case SyntaxKind.NumericLiteral:
-				return SettingKind.Number;
+				return new NumberLibConfigNodeImpl(
+					parent,
+					scanner.getTokenOffset(),
+					scanner.getTokenLength(),
+					parseFloat(scanner.getTokenValue())
+				);
 			case SyntaxKind.TrueKeyword:
 			case SyntaxKind.FalseKeyword:
-				return SettingKind.Number;
+				return new BooelanLibConfigNodeImpl(
+					parent,
+					scanner.getTokenOffset(),
+					scanner.getTokenLength(),
+					scanner.getTokenValue().toLowerCase() === 'true'
+				);	
 			case SyntaxKind.StringLiteral:
-				return SettingKind.String;
+				return new StringLibConfigNodeImpl(
+					parent,
+					scanner.getTokenOffset(),
+					scanner.getTokenLength(),
+					scanner.getTokenValue()
+				);	
 			default:
 				_error(
 					localize('UnrecognizedType', 'Expected setting type kind value'),
@@ -101,30 +145,91 @@ export function ParseLibConfigDocument(textDocument: TextDocument): LibConfigDoc
 					[],
 					[SyntaxKind.SemicolonToken]
 				);
-				return SettingKind.Invalid;
+				return null;
 		}
 	}
 
-	function _parseGroup() {
+	function _parseScalarValue(
+		parent: LibConfigPropertyNode | ArrayLibConfigNode,
+		scan: boolean = true
+	):
+		ScalarLibConfigNode | undefined {
+		let token = scan ? _scanNext() : scanner.getToken();
+		switch (token) {
+			case SyntaxKind.NumericLiteral:
+				return new NumberLibConfigNodeImpl(
+					parent,
+					scanner.getTokenOffset(),
+					scanner.getTokenLength(),
+					parseFloat(scanner.getTokenValue())
+				);
+			case SyntaxKind.TrueKeyword:
+			case SyntaxKind.FalseKeyword:
+				return new BooelanLibConfigNodeImpl(
+					parent,
+					scanner.getTokenOffset(),
+					scanner.getTokenLength(),
+					scanner.getTokenValue().toLowerCase() === 'true'
+				);	
+			case SyntaxKind.StringLiteral:
+				return new StringLibConfigNodeImpl(
+					parent,
+					scanner.getTokenOffset(),
+					scanner.getTokenLength(),
+					scanner.getTokenValue()
+				);	
+			default:
+				_error(
+					localize('UnrecognizedType', 'Expected setting type kind value'),
+					ErrorCode.ValueExpected,
+					[],
+					[SyntaxKind.SemicolonToken]
+				);
+				return;
+		}
+	}
+
+	function _parseGroup(parent: LibConfigPropertyNode | ListLibConfigNode) : ObjectLibConfigNode {
+		let back = new ObjectLibConfigNodeImpl(
+			parent,
+			scanner.getTokenOffset(),
+			0,
+			[]
+		);
 		// Move to next token
 		_scanNext();
+
 		while (
 			scanner.getToken() !== SyntaxKind.CloseBraceToken &&
 			scanner.getToken() !== SyntaxKind.EOF
-			) {
-			_parseSetting();
+		) {
+			let setting = _parseSetting(back);
+			if(setting)
+				back.addChild(setting);
 		}
+		back.length = scanner.getPosition() - back.offset;
+		return back;
 	}
 
-	function _parseList() {
+	function _parseList(parent: LibConfigPropertyNode | ListLibConfigNode) : ListLibConfigNode {
+		let back = new ListLibConfigNodeImpl(
+			parent,
+			scanner.getTokenOffset(),
+			0,
+			[]
+		);
+
 		// Move to next token
 		_scanNext();
 		if (scanner.getToken() === SyntaxKind.CloseParenToken) {
-			return;
+			back.length = scanner.getPosition() - back.offset
+			return back;
 		}
 
-		_parseValue(false);
-
+		var value = _parseValue(back, false);
+		if(value){
+			back.addChild(value);
+		}
 		let nextToken = _scanNext();
 
 		while (
@@ -135,43 +240,48 @@ export function ParseLibConfigDocument(textDocument: TextDocument): LibConfigDoc
 				_error(
 					localize('CommaExpected', 'Expected a comma'),
 					ErrorCode.CommaExpected,
-					[SyntaxKind.CloseParenToken, SyntaxKind.CommaToken]
+					[SyntaxKind.CloseParenToken],
+					[SyntaxKind.CommaToken]
 				);
 				continue;
 			}
-			_parseValue();
+			value = _parseValue(back);
+			if(value) {
+				back.addChild(value);
+			}
 			nextToken = _scanNext();
 		}
+
+		back.length = scanner.getPosition() - back.offset;
+		return back;
 	}
 
-	function _parseArray() {
+	function _parseArray(parent: LibConfigPropertyNode | ListLibConfigNode) : ArrayLibConfigNode {
 		// Move to next token
+		let back: ArrayLibConfigNodeImpl = new ArrayLibConfigNodeImpl(
+			parent,
+			scanner.getTokenOffset(),
+			0,
+			[]
+		);
 		_scanNext();
 		if (scanner.getToken() === SyntaxKind.CloseBracketToken) {
-			return;
+			back.length = scanner.getPosition() - back.offset;
+			return back;
 		}
 
-		let validateValue = (value: SettingKind) => {
-			switch (firstKind) {
-				case SettingKind.Number:
-				case SettingKind.Boolean:
-				case SettingKind.String:
-					break;
-				default:
-					_error(
-						localize('InvalidArrayEntry', 'Array entries must be scalar values'),
-						ErrorCode.ValueExpected
-					);
-			}
-		};
+		let value = _parseScalarValue(back, false);
 
-		let firstKind = _parseValue(false);
-		validateValue(firstKind);
+		if(value) {
+			back.addChild(value);
+		}
+
 		let nextToken = _scanNext();
 
 		while (
 			scanner.getToken() !== SyntaxKind.CloseBracketToken &&
-			scanner.getToken() !== SyntaxKind.EOF
+			scanner.getToken() !== SyntaxKind.EOF &&
+			scanner.getToken() !== SyntaxKind.SemicolonToken
 		) {
 			if (nextToken !== SyntaxKind.CommaToken) {
 				_error(
@@ -182,27 +292,25 @@ export function ParseLibConfigDocument(textDocument: TextDocument): LibConfigDoc
 				);
 				continue;
 			}
-			let secondKind = _parseValue();
-			validateValue(secondKind);
-			if (firstKind === SettingKind.Invalid) {
-				firstKind = secondKind;
+			value = _parseScalarValue(back);
+
+			if(value) {
+				back.addChild(value);
 			}
-			if (firstKind !== secondKind) {
-				_error(
-					localize('MismatchArrayType', 'Array entries must all have the same type'),
-					ErrorCode.ValueExpected
-				);
-			}
+
 			nextToken = _scanNext();
 		}
+
+		back.length = scanner.getTokenOffset() - back.offset;
+
+		return back;
 	}
 
 	function _parseTerminator() {
 		if (_scanNext() !== SyntaxKind.SemicolonToken) {
 			_error(
 				localize('ExpectedSemicolon', 'Expected a terminator'),
-				ErrorCode.SemicolonExpected,
-				[SyntaxKind.SemicolonToken, SyntaxKind.LineBreakTrivia]
+				ErrorCode.SemicolonExpected
 			);
 			return;
 		}
@@ -269,9 +377,13 @@ export function ParseLibConfigDocument(textDocument: TextDocument): LibConfigDoc
 		return false;
 	}
 
+	BaseLibConfigNodeImpl.addErrorCallback((errorInfo, start, length)=>{
+		_errorAtRange(errorInfo, ErrorCode.Undefined, start, start + length)
+	});
+
 	_scanNext();
 	while (scanner.getToken() !== SyntaxKind.EOF) {
-		_parseSetting();
+		var prop = _parseSetting(null);
 	}
 	return new LibConfigDocument(problems, commentRanges);
 }

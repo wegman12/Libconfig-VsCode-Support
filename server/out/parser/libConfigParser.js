@@ -30,111 +30,135 @@ function ParseLibConfigDocument(textDocument) {
             }
         }
     }
-    function _parseSetting() {
+    function _parseSetting(parent) {
         if (scanner.getToken() !== dataClasses_1.SyntaxKind.PropertyName) {
             _error(localize('ExpectedProperty', "Expected a property value name"), dataClasses_1.ErrorCode.PropertyExpected, [dataClasses_1.SyntaxKind.SemicolonToken]);
             return;
         }
+        let setting = new dataClasses_1.LibConfigPropertyNodeImpl(parent, scanner.getTokenOffset(), 0, scanner.getTokenValue(), null);
         let token = _scanNext();
         if (token !== dataClasses_1.SyntaxKind.EqualToken && token !== dataClasses_1.SyntaxKind.ColonToken) {
             _error(localize('ExpectedSetter', 'Expected a colon or equal'), dataClasses_1.ErrorCode.ColonExpected, [dataClasses_1.SyntaxKind.SemicolonToken]);
-            return;
+            setting.length = scanner.getPosition() - setting.offset;
+            return setting;
         }
-        _parseValue();
+        setting.value = _parseValue(setting);
+        setting.length = scanner.getPosition() - setting.offset;
         _parseTerminator();
+        return setting;
     }
-    function _parseValue(scan = true) {
+    function _parseValue(parent, scan = true) {
         let token = scan ? _scanNext() : scanner.getToken();
         switch (token) {
             case dataClasses_1.SyntaxKind.OpenBraceToken:
                 // Parse Group
-                _parseGroup();
-                return dataClasses_1.SettingKind.Group;
+                return _parseGroup(parent);
             case dataClasses_1.SyntaxKind.OpenParenToken:
                 // Parse List
-                _parseList();
-                return dataClasses_1.SettingKind.List;
+                return _parseList(parent);
             case dataClasses_1.SyntaxKind.OpenBracketToken:
                 // Parse Array
-                _parseArray();
-                return dataClasses_1.SettingKind.Array;
+                return _parseArray(parent);
             case dataClasses_1.SyntaxKind.NumericLiteral:
-                return dataClasses_1.SettingKind.Number;
+                return new dataClasses_1.NumberLibConfigNodeImpl(parent, scanner.getTokenOffset(), scanner.getTokenLength(), parseFloat(scanner.getTokenValue()));
             case dataClasses_1.SyntaxKind.TrueKeyword:
             case dataClasses_1.SyntaxKind.FalseKeyword:
-                return dataClasses_1.SettingKind.Number;
+                return new dataClasses_1.BooelanLibConfigNodeImpl(parent, scanner.getTokenOffset(), scanner.getTokenLength(), scanner.getTokenValue().toLowerCase() === 'true');
             case dataClasses_1.SyntaxKind.StringLiteral:
-                return dataClasses_1.SettingKind.String;
+                return new dataClasses_1.StringLibConfigNodeImpl(parent, scanner.getTokenOffset(), scanner.getTokenLength(), scanner.getTokenValue());
             default:
                 _error(localize('UnrecognizedType', 'Expected setting type kind value'), dataClasses_1.ErrorCode.ValueExpected, [], [dataClasses_1.SyntaxKind.SemicolonToken]);
-                return dataClasses_1.SettingKind.Invalid;
+                return null;
         }
     }
-    function _parseGroup() {
+    function _parseScalarValue(parent, scan = true) {
+        let token = scan ? _scanNext() : scanner.getToken();
+        switch (token) {
+            case dataClasses_1.SyntaxKind.NumericLiteral:
+                return new dataClasses_1.NumberLibConfigNodeImpl(parent, scanner.getTokenOffset(), scanner.getTokenLength(), parseFloat(scanner.getTokenValue()));
+            case dataClasses_1.SyntaxKind.TrueKeyword:
+            case dataClasses_1.SyntaxKind.FalseKeyword:
+                return new dataClasses_1.BooelanLibConfigNodeImpl(parent, scanner.getTokenOffset(), scanner.getTokenLength(), scanner.getTokenValue().toLowerCase() === 'true');
+            case dataClasses_1.SyntaxKind.StringLiteral:
+                return new dataClasses_1.StringLibConfigNodeImpl(parent, scanner.getTokenOffset(), scanner.getTokenLength(), scanner.getTokenValue());
+            default:
+                _error(localize('UnrecognizedType', 'Expected setting type kind value'), dataClasses_1.ErrorCode.ValueExpected, [], [dataClasses_1.SyntaxKind.SemicolonToken]);
+                return;
+        }
+    }
+    function _parseGroup(parent) {
+        let back = new dataClasses_1.ObjectLibConfigNodeImpl(parent, scanner.getTokenOffset(), 0, []);
         // Move to next token
         _scanNext();
         while (scanner.getToken() !== dataClasses_1.SyntaxKind.CloseBraceToken &&
             scanner.getToken() !== dataClasses_1.SyntaxKind.EOF) {
-            _parseSetting();
+            let setting = _parseSetting(back);
+            if (setting)
+                back.addChild(setting);
         }
+        back.length = scanner.getPosition() - back.offset;
+        return back;
     }
-    function _parseList() {
+    function _parseList(parent) {
+        let back = new dataClasses_1.ListLibConfigNodeImpl(parent, scanner.getTokenOffset(), 0, []);
         // Move to next token
         _scanNext();
         if (scanner.getToken() === dataClasses_1.SyntaxKind.CloseParenToken) {
-            return;
+            back.length = scanner.getPosition() - back.offset;
+            return back;
         }
-        _parseValue(false);
+        var value = _parseValue(back, false);
+        if (value) {
+            back.addChild(value);
+        }
         let nextToken = _scanNext();
         while (scanner.getToken() !== dataClasses_1.SyntaxKind.CloseParenToken &&
             scanner.getToken() !== dataClasses_1.SyntaxKind.EOF) {
             if (nextToken !== dataClasses_1.SyntaxKind.CommaToken) {
-                _error(localize('CommaExpected', 'Expected a comma'), dataClasses_1.ErrorCode.CommaExpected, [dataClasses_1.SyntaxKind.CloseParenToken, dataClasses_1.SyntaxKind.CommaToken]);
+                _error(localize('CommaExpected', 'Expected a comma'), dataClasses_1.ErrorCode.CommaExpected, [dataClasses_1.SyntaxKind.CloseParenToken], [dataClasses_1.SyntaxKind.CommaToken]);
                 continue;
             }
-            _parseValue();
+            value = _parseValue(back);
+            if (value) {
+                back.addChild(value);
+            }
             nextToken = _scanNext();
         }
+        back.length = scanner.getPosition() - back.offset;
+        return back;
     }
-    function _parseArray() {
+    function _parseArray(parent) {
         // Move to next token
+        let back = new dataClasses_1.ArrayLibConfigNodeImpl(parent, scanner.getTokenOffset(), 0, []);
         _scanNext();
         if (scanner.getToken() === dataClasses_1.SyntaxKind.CloseBracketToken) {
-            return;
+            back.length = scanner.getPosition() - back.offset;
+            return back;
         }
-        let validateValue = (value) => {
-            switch (firstKind) {
-                case dataClasses_1.SettingKind.Number:
-                case dataClasses_1.SettingKind.Boolean:
-                case dataClasses_1.SettingKind.String:
-                    break;
-                default:
-                    _error(localize('InvalidArrayEntry', 'Array entries must be scalar values'), dataClasses_1.ErrorCode.ValueExpected);
-            }
-        };
-        let firstKind = _parseValue(false);
-        validateValue(firstKind);
+        let value = _parseScalarValue(back, false);
+        if (value) {
+            back.addChild(value);
+        }
         let nextToken = _scanNext();
         while (scanner.getToken() !== dataClasses_1.SyntaxKind.CloseBracketToken &&
-            scanner.getToken() !== dataClasses_1.SyntaxKind.EOF) {
+            scanner.getToken() !== dataClasses_1.SyntaxKind.EOF &&
+            scanner.getToken() !== dataClasses_1.SyntaxKind.SemicolonToken) {
             if (nextToken !== dataClasses_1.SyntaxKind.CommaToken) {
                 _error(localize('CommaExpected', 'Expected a comma'), dataClasses_1.ErrorCode.CommaExpected, [dataClasses_1.SyntaxKind.CloseBracketToken], [dataClasses_1.SyntaxKind.CommaToken]);
                 continue;
             }
-            let secondKind = _parseValue();
-            validateValue(secondKind);
-            if (firstKind === dataClasses_1.SettingKind.Invalid) {
-                firstKind = secondKind;
-            }
-            if (firstKind !== secondKind) {
-                _error(localize('MismatchArrayType', 'Array entries must all have the same type'), dataClasses_1.ErrorCode.ValueExpected);
+            value = _parseScalarValue(back);
+            if (value) {
+                back.addChild(value);
             }
             nextToken = _scanNext();
         }
+        back.length = scanner.getTokenOffset() - back.offset;
+        return back;
     }
     function _parseTerminator() {
         if (_scanNext() !== dataClasses_1.SyntaxKind.SemicolonToken) {
-            _error(localize('ExpectedSemicolon', 'Expected a terminator'), dataClasses_1.ErrorCode.SemicolonExpected, [dataClasses_1.SyntaxKind.SemicolonToken, dataClasses_1.SyntaxKind.LineBreakTrivia]);
+            _error(localize('ExpectedSemicolon', 'Expected a terminator'), dataClasses_1.ErrorCode.SemicolonExpected);
             return;
         }
         // Move to next
@@ -195,9 +219,12 @@ function ParseLibConfigDocument(textDocument) {
         }
         return false;
     }
+    dataClasses_1.BaseLibConfigNodeImpl.addErrorCallback((errorInfo, start, length) => {
+        _errorAtRange(errorInfo, dataClasses_1.ErrorCode.Undefined, start, start + length);
+    });
     _scanNext();
     while (scanner.getToken() !== dataClasses_1.SyntaxKind.EOF) {
-        _parseSetting();
+        var prop = _parseSetting(null);
     }
     return new dataClasses_1.LibConfigDocument(problems, commentRanges);
 }
