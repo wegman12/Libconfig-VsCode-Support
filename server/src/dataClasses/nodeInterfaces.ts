@@ -11,11 +11,11 @@ export type LibConfigNode =
 
 export interface BaseLibConfigNode {
 	readonly type: 'object' | 'array' | 'list' | 'property' | 'string' | 'number' | 'boolean';
-	readonly parent: ObjectLibConfigNode | LibConfigPropertyNode | null;
+	readonly parent: LibConfigPropertyNode | ListLibConfigNode | ObjectLibConfigNode | ArrayLibConfigNode | null;
 	offset: number;
 	length: number;
 	readonly children?: ScalarLibConfigNode[] | BaseLibConfigNode[] | LibConfigPropertyNode[];
-	readonly value?: string | boolean | number | BaseLibConfigNode;
+	value: string | boolean | number | BaseLibConfigNode | null;
 
 	addChild (child: ScalarLibConfigNode | BaseLibConfigNode | LibConfigPropertyNode): void;
 }
@@ -23,29 +23,29 @@ export interface BaseLibConfigNode {
 export interface LibConfigPropertyNode extends BaseLibConfigNode {
 	readonly type: 'property';
 	name: string;
-	readonly parent: ObjectLibConfigNode | null;
-	readonly value: BaseLibConfigNode;
+	readonly parent: LibConfigPropertyNode | ObjectLibConfigNode | null;
+	readonly value: BaseLibConfigNode | null;
 }
 
 export interface ObjectLibConfigNode extends BaseLibConfigNode {
 	readonly type: 'object';
-	readonly parent: LibConfigPropertyNode;
+	readonly parent: LibConfigPropertyNode | ListLibConfigNode;
 	readonly children: LibConfigPropertyNode[];
 }
 export interface ArrayLibConfigNode extends BaseLibConfigNode {
 	readonly type: 'array';
-	readonly parent: LibConfigPropertyNode;
+	readonly parent: LibConfigPropertyNode | ListLibConfigNode;
 	readonly children: ScalarLibConfigNode[];
 }
 export interface ListLibConfigNode extends BaseLibConfigNode {
 	readonly type: 'list';
-	readonly parent: LibConfigPropertyNode;
+	readonly parent: LibConfigPropertyNode | ListLibConfigNode;
 	readonly children: BaseLibConfigNode[];
 }
 
 export interface ScalarLibConfigNode extends BaseLibConfigNode {
 	readonly type: 'string' | 'number' | 'boolean';
-	readonly parent: LibConfigPropertyNode;
+	readonly parent: LibConfigPropertyNode | ArrayLibConfigNode | ListLibConfigNode;
 	readonly value: string | boolean | number;
 }
 

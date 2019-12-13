@@ -6,7 +6,7 @@ import { SettingKind } from './settingKind';
 import { Range } from './range';
 import { Edit } from './edit';
 import {
-	LibConfigProperty,
+	LibConfigPropertyNode,
 	BaseLibConfigNode,
 	LibConfigNode,
 	ObjectLibConfigNode,
@@ -18,7 +18,7 @@ import {
 	BooleanLibConfigNode
 } from './nodeInterfaces';
 import {
-	LibConfigPropertyImpl,
+	LibConfigPropertyNodeImpl,
 	BaseLibConfigNodeImpl,
 	ObjectLibConfigNodeImpl,
 	ListLibConfigNodeImpl,
@@ -37,7 +37,7 @@ export {
 	SettingKind,
 	Range,
 	Edit,
-	LibConfigProperty,
+	LibConfigPropertyNode,
 	BaseLibConfigNode,
 	LibConfigNode,
 	ObjectLibConfigNode,
@@ -47,7 +47,7 @@ export {
 	StringLibConfigNode,
 	NumberLibConfigNode,
 	BooleanLibConfigNode,
-	LibConfigPropertyImpl,
+	LibConfigPropertyNodeImpl,
 	BaseLibConfigNodeImpl,
 	ObjectLibConfigNodeImpl,
 	ListLibConfigNodeImpl,

@@ -16,33 +16,34 @@ import {
 
 export abstract class BaseLibConfigNodeImpl implements BaseLibConfigNode {
 	public readonly abstract type: 'object' | 'array' | 'list' | 'property' | 'string' | 'number' | 'boolean';
+	public abstract value: string | boolean | number | BaseLibConfigNode | null;
 	
 	/**
 	 * Error callback functions which are called whenever an error occurs
 	 */
-	protected errorCallbacks: Array<(errorInfo:string, start:number, length:number) => void> = [];
+	protected static errorCallbacks: Array<(errorInfo:string, start:number, length:number) => void> = [];
 	
 	/**
 	 * Add a callback function which is called whenever an error occurs
 	 * @param func The callback function being added
 	 */
-	public addErrorCallback(func:((errorInfo:string, start:number, length:number)=>void)){
+	static addErrorCallback(func:((errorInfo:string, start:number, length:number)=>void)){
 		this.errorCallbacks.push(func);
 	}
 
 	/**
-	 * Calls all callback functions with the necissary error information
+	 * Calls all callback functions with the necessary error information
 	 * @param errorInfo The error information for the call
 	 */
-	protected Error(errorInfo:string, start:number, length:number){
-		this.errorCallbacks.map((value)=>{
+	protected static Error(errorInfo:string, start:number, length:number){
+		BaseLibConfigNodeImpl.errorCallbacks.map((value)=>{
 			value(errorInfo, start, length);
 		});
 	}
 
 	public offset: number;
 	public length: number = 0;
-	public abstract readonly parent: ObjectLibConfigNode | LibConfigPropertyNode | null;
+	public abstract readonly parent: LibConfigPropertyNode | ListLibConfigNode | ObjectLibConfigNode | ArrayLibConfigNode | null;
 	public abstract addChild (child: ScalarLibConfigNode | BaseLibConfigNode | LibConfigPropertyNode): void;
 
 	constructor(
@@ -53,7 +54,7 @@ export abstract class BaseLibConfigNodeImpl implements BaseLibConfigNode {
 		this.length = length;
 
 		if(callbacks)
-			callbacks.map((value)=> { this.addErrorCallback });
+			callbacks.map((value)=> { BaseLibConfigNodeImpl.addErrorCallback });
 	}
 
 	public toString(): string {
@@ -64,16 +65,16 @@ export abstract class BaseLibConfigNodeImpl implements BaseLibConfigNode {
 
 export class LibConfigPropertyNodeImpl extends BaseLibConfigNodeImpl implements LibConfigPropertyNode {
 	public readonly type: 'property' = 'property';
-	public readonly parent: ObjectLibConfigNode | null;
+	public readonly parent: LibConfigPropertyNode | ObjectLibConfigNode | null;
 	public name: string;
-	public readonly value?: BaseLibConfigNode;
+	public value: BaseLibConfigNode | null;
 
 	constructor(
-		parent: ObjectLibConfigNode | null,
+		parent: LibConfigPropertyNode | ObjectLibConfigNode | null,
 		offset: number,
 		length: number,
 		name: string,
-		value?: BaseLibConfigNode
+		value: BaseLibConfigNode | null
 	) {
 		super(
 			offset,
@@ -81,8 +82,7 @@ export class LibConfigPropertyNodeImpl extends BaseLibConfigNodeImpl implements 
 		);
 		this.parent = parent;
 		this.name = name;
-		if(value)
-			this.value = value;
+		this.value = value;
 	}
 
 	/**
@@ -97,10 +97,11 @@ export class LibConfigPropertyNodeImpl extends BaseLibConfigNodeImpl implements 
 export class ObjectLibConfigNodeImpl extends BaseLibConfigNodeImpl implements ObjectLibConfigNode {
 	public readonly type: 'object' = 'object';
 	private _properties: LibConfigPropertyNode[] = [];
-	public readonly parent: LibConfigPropertyNode;
+	public readonly parent: LibConfigPropertyNode | ListLibConfigNode;
+	public value: null;
 	
 	constructor(
-		parent: LibConfigPropertyNode, 
+		parent: LibConfigPropertyNode | ListLibConfigNode, 
 		offset: number, 
 		length: number,
 		properties: LibConfigPropertyNode[],
@@ -148,7 +149,9 @@ export class ObjectLibConfigNodeImpl extends BaseLibConfigNodeImpl implements Ob
 		let invalid:boolean = false;
 		this._properties.map((value, index, array) => {
 			if(value.name === child.name){
-				this.Error(`Duplicate properties with name '${value.name}' found!`, child.parent.offset, child.parent.length)
+				let offset = child.offset;
+				let length = child.length;
+				BaseLibConfigNodeImpl.Error(`Duplicate properties with name '${value.name}' found!`, offset, length)
 				invalid = true;
 			}
 		});
@@ -167,10 +170,11 @@ export class ObjectLibConfigNodeImpl extends BaseLibConfigNodeImpl implements Ob
 export class ListLibConfigNodeImpl extends BaseLibConfigNodeImpl implements ListLibConfigNode {
 	public readonly type: 'list' = 'list';
 	private _children: BaseLibConfigNode[] = [];
-	public readonly parent: LibConfigPropertyNode;
+	public readonly parent: LibConfigPropertyNode | ListLibConfigNode;
+	public value: null;
 	
 	constructor(
-		parent: LibConfigPropertyNode, 
+		parent: LibConfigPropertyNode | ListLibConfigNode, 
 		offset: number, 
 		length: number,
 		children: LibConfigNode[],
@@ -231,10 +235,11 @@ export class ListLibConfigNodeImpl extends BaseLibConfigNodeImpl implements List
 export class ArrayLibConfigNodeImpl extends BaseLibConfigNodeImpl implements ArrayLibConfigNode {
 	public readonly type: 'array' = 'array';
 	private _children: ScalarLibConfigNode[] = [];
-	readonly parent: LibConfigPropertyNode;
+	readonly parent: LibConfigPropertyNode | ListLibConfigNode;
+	public value: null;
 	
 	constructor(
-		parent: LibConfigPropertyNode, 
+		parent: LibConfigPropertyNode | ListLibConfigNode, 
 		offset: number, 
 		length: number,
 		children: ScalarLibConfigNode[],
@@ -269,7 +274,7 @@ export class ArrayLibConfigNodeImpl extends BaseLibConfigNodeImpl implements Arr
 	public addChild (child: ScalarLibConfigNode): void {
 		
 		if(!this.validate(child)) {
-			this.Error('Error adding child to list', child.offset, child.length);
+			BaseLibConfigNodeImpl.Error('Error adding child to list', child.offset, child.length);
 			return;
 		}
 		this._children.push(child);
@@ -286,7 +291,7 @@ export class ArrayLibConfigNodeImpl extends BaseLibConfigNodeImpl implements Arr
 		let type:'string' | 'number' | 'boolean' = this._children.length > 0 ? this._children[0].type : child.type;
 
 		if(type !== child.type){
-			this.Error(`Array must have consistent type: first element type is '${type}'`);
+			BaseLibConfigNodeImpl.Error(`Array must have consistent type: first element type is '${type}'`, child.offset, child.length);
 			invalid = true;
 		}
 
@@ -304,10 +309,10 @@ export class ArrayLibConfigNodeImpl extends BaseLibConfigNodeImpl implements Arr
 export abstract class ScalarLibConfigNodeImpl extends BaseLibConfigNodeImpl implements ScalarLibConfigNode {
 	public readonly abstract type: 'string' | 'boolean' | 'number';
 	public abstract value: string | number | boolean;
-	public readonly parent: LibConfigPropertyNode;
+	public readonly parent: LibConfigPropertyNode | ArrayLibConfigNode | ListLibConfigNode;
 	
 	constructor(
-		parent: LibConfigPropertyNode, 
+		parent: LibConfigPropertyNode | ArrayLibConfigNode | ListLibConfigNode, 
 		offset: number, 
 		length: number,
 		callbacks?: Array<(errorInfo: string) => void>) {
@@ -340,7 +345,7 @@ export class StringLibConfigNodeImpl extends ScalarLibConfigNodeImpl implements 
 	public value: string;
 	
 	constructor(
-		parent: LibConfigPropertyNode, 
+		parent: LibConfigPropertyNode | ArrayLibConfigNode | ListLibConfigNode, 
 		offset: number, 
 		length: number,
 		value: string,
@@ -377,7 +382,7 @@ export class NumberLibConfigNodeImpl extends ScalarLibConfigNodeImpl implements 
 	}
 	
 	constructor(
-		parent: LibConfigPropertyNode, 
+		parent: LibConfigPropertyNode | ArrayLibConfigNode | ListLibConfigNode, 
 		offset: number, 
 		length: number,
 		value: number,
@@ -410,7 +415,7 @@ export class BooelanLibConfigNodeImpl extends ScalarLibConfigNodeImpl implements
 	public value: boolean;
 	
 	constructor(
-		parent: LibConfigPropertyNode, 
+		parent: LibConfigPropertyNode | ArrayLibConfigNode | ListLibConfigNode, 
 		offset: number, 
 		length: number,
 		value: boolean,
