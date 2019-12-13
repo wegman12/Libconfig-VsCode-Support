@@ -2,7 +2,7 @@
     "name": "cfg-language-features",
     "displayName": "LibConfig",
     "description": "C++ Configuration Library Syntax Highlighter and Refactoring Agent",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "publisher": "wegman12",
     "repository": {
         "type": "git",
