@@ -1,8 +1,8 @@
 {
     "name": "libconfig-lang",
     "displayName": "LibConfig",
-    "description": "C++ Configuration Library Syntax Highlighter and Refactoring Agent (Fork)",
-    "version": "1.0.1",
+    "description": "LibConfig Syntax Highlighting (Fork)",
+    "version": "1.0.2",
     "publisher": "tmulligan",
     "repository": {
         "type": "git",
@@ -27,7 +27,8 @@
                     "libconfig"
                 ],
                 "extensions": [
-                    ".cfg"
+                    ".cfg",
+                    ".schema"
                 ],
                 "configuration": "./language-configuration.json"
             }
