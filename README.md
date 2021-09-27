@@ -1,6 +1,9 @@
 # LibConfig README
 
-An extension which provides language support for C++ LibConfig files. 
+A maintenance fork of the wegman12.cfg-language-features extension which provides language support for C++ LibConfig files.
+The original extension appeared unmaintained with various outstanding pull requests.
+
+Original extension repo at https://github.com/wegman12/Libconfig-VsCode-Support
 
 See https://github.com/hyperrealm/libconfig for more details on libconfig specifications
 
@@ -28,7 +31,8 @@ None
 
 ## Release Notes
 
-### 1.0.0
 
-Initial release of libConfig parser
+### 1.0.1
+
+Fix hex value handling to allow arbitrary number of digits.
 
