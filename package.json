@@ -2,7 +2,7 @@
     "name": "libconfig-lang",
     "displayName": "LibConfig",
     "description": "LibConfig Syntax Highlighting (Fork)",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "publisher": "tmulligan",
     "repository": {
         "type": "git",

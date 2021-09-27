@@ -28,8 +28,5 @@ None
 ## Release Notes
 
 
-### 1.0.2
- * Update README information and cleanup repo.
- * Add .schema files to file extension match
-#### 1.0.1
- * Fix hex value handling to allow arbitrary number of digits.
+### 1.0.3
+Allow capital '0X' in hex code value specifier
